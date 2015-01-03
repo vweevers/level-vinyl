@@ -5,8 +5,9 @@ var test = require('tape')
   , concat = require('concat-stream')
   , create = require('./util-create-db')
   , path = require('path')
+  , unixify = require('unixify')
 
-test.skip('src with opts.read = false', function(){
+test.skip('src with opts.since', function(){
   // TODO
 })
 
@@ -19,10 +20,6 @@ test.skip('src/dest with opts.base', function(){
 })
 
 test.skip('dest() resets streams', function(){
-  // TODO
-})
-
-test.skip('glob negation', function(){
   // TODO
 })
 
@@ -40,6 +37,55 @@ test.skip('duplicate files, remove one, blob is kept', function(){
 
 test.skip('no conflicts between sublevel blobs', function(){
   // TODO
+})
+
+test('src with opts.read = false', function(t){
+  var vinylDb = create()
+
+  var file = new Vinyl({
+    path: __dirname+'/testfile',
+    contents: new Buffer('foo')
+  })
+
+  t.plan(1)
+
+  vinylDb.put(file, function(err){
+    vinylDb.src('test**', { read: false}).pipe(concat(function(files){
+      t.ok(files[0] && files[0].isNull(), 'is null')
+    }))
+  })
+})
+
+test('glob negation', function(t){
+  var vinylDb = create()
+
+  var file1 = new Vinyl({
+    path: __dirname+'/test-document',
+    contents: new Buffer('doc')
+  })
+
+  var file2 = new Vinyl({
+    path: __dirname+'/test-image',
+    contents: new Buffer('img')
+  })
+
+  t.plan(2)
+
+  var ws = vinylDb.dest()
+
+  eos(ws, function(err){
+    vinylDb.src('**/test-*', { read: false}).pipe(concat(function(files){
+      var paths = files.map(function(f){ return unixify(f.relative) })
+      t.deepEqual(paths, ['test/test-document', 'test/test-image'])
+    }))
+    vinylDb.src(['**/test-*', '!**image'], { read: false}).pipe(concat(function(files){
+      var paths = files.map(function(f){ return unixify(f.relative) })
+      t.deepEqual(paths, ['test/test-document'])
+    }))
+  })
+
+  ws.write(file1)
+  ws.end(file2)
 })
 
 test('put and get', function(t){
