@@ -138,7 +138,14 @@ function levelVinyl(db, opts) {
 
   // remove blob on file removal
   db.index('digest').post(function(op){
-    if (op.type=='del') blobs.remove(op.key[0])
+    if (op.type=='del') {
+      // TODO: index ranges without item key, so the extra
+      // lookup becomes unneccesary?
+      var digest = op.key[0]
+      db.getBy('digest', digest, function(err, item){
+        if (!item) blobs.remove(digest)
+      })
+    }
   })
 
   return db

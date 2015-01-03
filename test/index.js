@@ -31,10 +31,6 @@ test.skip('watch()', function(){
   // TODO
 })
 
-test.skip('duplicate files, remove one, blob is kept', function(){
-  // TODO
-})
-
 test.skip('no conflicts between sublevel blobs', function(){
   // TODO
 })
@@ -194,4 +190,49 @@ test('deletes blobs', function(t){
       })
     })
   })
+})
+
+test('duplicate files, remove one, blob is kept', function(t){
+  var vinylDb = create()
+
+  var file1 = new Vinyl({
+    path: __dirname+'/test1',
+    contents: new Buffer('img')
+  })
+
+  var file2 = new Vinyl({
+    path: __dirname+'/test2',
+    contents: new Buffer('img')
+  })
+
+  t.plan(5)
+
+  var ws = vinylDb.dest()
+    , blobs = vinylDb.vinylBlobs()
+
+  eos(ws, function(err){
+    t.equal(file1.digest, file2.digest, 'same digest')
+
+    blobs.exists({key: file1.digest}, function(err, exists){
+      t.ok(exists, 'blob exists')
+    })
+
+    vinylDb.src('**', { read: false}).pipe(concat(function(files){
+      var paths = files.map(function(f){ return unixify(f.relative) })
+      t.deepEqual(paths, ['test/test1', 'test/test2'])
+
+      vinylDb.del(file1, function(err){
+        t.notOk(err)
+
+        setTimeout(function(){
+          blobs.exists({key: file2.digest}, function(err, exists){
+            t.ok(exists, 'blob still exists')
+          })
+        }, 300)
+      })
+    }))
+  })
+
+  ws.write(file1)
+  ws.end(file2)
 })
