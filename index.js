@@ -41,7 +41,17 @@ function levelVinyl(db, opts) {
     if (!globs.length) {
       var stream = db.createValueStream()
     } else if (globs.length==1 && !isGlob(globs[0])) { // get by path
-      stream = db.createValueStream({start: globs[0], limit: 1})
+      var singlePath = globs[0]
+        , opts_ = { start: singlePath }
+
+      // - without a slash, assume a single file is wanted
+      // - with a slash, this is effectively a directory glob
+      if (singlePath[singlePath.length-1]!=='/') {
+        opts_.limit = 1
+        opts_.end = singlePath+'*'
+      }
+
+      stream = db.createValueStream(opts_)
     } else {
       var negatives = [], positives = [] // separate globs
 

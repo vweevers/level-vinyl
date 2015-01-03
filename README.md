@@ -63,7 +63,7 @@ In terms of compatibility with gulp / vinyl-fs.
 - [x] Base: `file.base` is set to "glob base" or `opts.base`
 - [x] No read: `file.isNull()` when `opts.read == false`
 - [ ] should pass through writes (needs test)
-- [ ] should glob a directory
+- [x] should glob a directory
 - [ ] return dead stream if globs is empty array
 - [ ] throw on invalid glob (not a string or array)
 - [ ] Support `opts.since`

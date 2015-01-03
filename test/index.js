@@ -27,6 +27,43 @@ test.skip('no conflicts between sublevel blobs', function(){
   // TODO
 })
 
+test('glob a directory', function(t){
+  var vinylDb = create()
+
+  var file1 = new Vinyl({
+    path: __dirname+'/img/test.jpg',
+    contents: new Buffer('foo')
+  })
+
+  var file2 = new Vinyl({
+    path: __dirname+'/img/foo/test.png',
+    contents: new Buffer('hello')
+  })
+
+  t.plan(5)
+
+  var ws = vinylDb.dest()
+
+  eos(ws, function(err){
+    vinylDb.src('test/img/').pipe(concat(function(files){
+      if (files.length!==2) return t.fail()
+      var file1 = files[1], file2 = files[0]
+
+      t.equal(file1.base, file1.cwd)
+      t.equal(file1.base, file2.base)
+      t.equal(unixify(file1.relative), 'test/img/test.jpg')
+      t.equal(unixify(file2.relative), 'test/img/foo/test.png')
+    }))
+
+    vinylDb.src('test/img').pipe(concat(function(files){
+      t.equal(files.length, 0)
+    }))
+  })
+
+  ws.write(file1)
+  ws.end(file2)
+})
+
 test('src with opts.base', function(t){
   var vinylDb = create()
 
