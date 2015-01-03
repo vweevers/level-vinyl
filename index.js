@@ -31,10 +31,11 @@ function levelVinyl(db, opts) {
 
     opts = xtend({ read: true }, opts || {})
 
+    globs = globs.map(function(glob){ return unixify(glob, true) })
+
     if (!globs.length) {
       var stream = db.createValueStream()
     } else if (globs.length==1 && !isGlob(globs[0])) { // get by path
-      globs[0] = unixify(globs[0])
       stream = db.createValueStream({start: globs[0], limit: 1})
     } else if (db.hasIndex(globs)) {
       stream = db.streamBy(globs)
@@ -62,7 +63,7 @@ function levelVinyl(db, opts) {
     if (opts.valueEncoding || opts.encoding)
       return get.call(db, path, opts, cb) //as-is
 
-    get.call(db, path, function(err, file){
+    get.call(db, unixify(path, true), function(err, file){
       if (err) return cb(err)
       cb(null, decode(file, opts.read))
     })
@@ -77,7 +78,7 @@ function levelVinyl(db, opts) {
   // key, value, [opts], cb
   // vinyl, [opts], cb
   db.put = function(key, vinyl, opts, cb) {
-    if (isVinyl(key)) cb = opts, opts = vinyl, vinyl = key, key = vinyl.relative
+    if (typeof key != 'string') cb = opts, opts = vinyl, vinyl = key, key = vinyl.relative
     if (typeof opts == 'function') cb = opts, opts = {}
     if (!isVinyl(vinyl) || opts.valueEncoding || opts.encoding)
       return put.call(db, key, vinyl, opts, cb) // as-is
@@ -86,7 +87,7 @@ function levelVinyl(db, opts) {
 
   // note that blobs are auto-deleted in a post hook (see below)
   var del = db.del; db.del = function(key, cb) {
-    key = key.relative || key
+    key = unixify(key.relative || key, true)
     del.call(db, key, cb)
   }
 
@@ -99,7 +100,7 @@ function levelVinyl(db, opts) {
   // contents will have it's position reset to the beginning if it is a stream"
   db.dest = function(folder) {
     var stream = through2.obj(function(vinyl, _, next){
-      db.put(vinyl.relative, vinyl, function (err) {
+      db.put(vinyl, function (err) {
         next(err, vinyl)
       })
     })
@@ -153,7 +154,7 @@ function levelVinyl(db, opts) {
 
   function encode(vinyl) {
     var plain = {
-      relative: unixify(vinyl.relative)
+      relative: unixify(vinyl.relative, true)
     }
 
     customProperties(vinyl).concat('stat').forEach(function(prop){
