@@ -20,7 +20,7 @@
   "dependencies": {
     "vinyl": "~0.4.6",
     "content-addressable-blob-store": "~4.1.1",
-    "level-map-index": "~0.0.1",
+    "level-map-index": "~0.1.0",
     "micromatch": "~1.0.0",
     "is-glob": "^0.3.0",
     "through2": "~0.6.3",

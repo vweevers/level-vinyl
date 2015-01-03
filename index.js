@@ -37,16 +37,11 @@ function levelVinyl(db, opts) {
       var stream = db.createValueStream()
     } else if (globs.length==1 && !isGlob(globs[0])) { // get by path
       stream = db.createValueStream({start: globs[0], limit: 1})
-    } else if (db.hasIndex(globs)) {
-      stream = db.streamBy(globs)
     } else {
-      stream = through2.obj() // passthrough
-
       db.index(globs, function (path, file, globs){
         return micromatch(path, globs).length ? [] : null
-      }).on('complete', function(){
-        db.streamBy(globs).pipe(stream)
-      }).start()
+      });
+      stream = db.streamBy(globs)
     }
 
     return stream.pipe(through2.obj(function(value, _, next){
