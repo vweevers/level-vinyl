@@ -27,10 +27,7 @@ function levelVinyl(db, opts) {
   index(db, {get: { valueEncoding: 'json' }});
 
   // TODO: auto-remove old indices (but when?)
-  // TODO: base should be glob base or opts.base
   // TODO: what if it's an absolute path?
-  // TODO: multiple globs have different bases, so we need to
-  //       aggregate them
   db.src = function(globs, opts) {
     if (typeof globs == 'string') globs = [globs]
     else if (!Array.isArray(globs)) opts = globs, globs = []
@@ -38,64 +35,60 @@ function levelVinyl(db, opts) {
     globs = globs.map(function(glob){ return unixify(glob, true) })
     opts = xtend({ read: true }, opts || {})
 
-    if (!globs.length) {
-      var stream = db.createValueStream()
-    } else if (globs.length==1 && !isGlob(globs[0])) { // get by path
-      var singlePath = globs[0]
-        , opts_ = { start: singlePath }
+    if (!globs.length)
+      return db.createValueStream().pipe(toVinyl(opts))
 
-      // - without a slash, assume a single file is wanted
-      // - with a slash, this is effectively a directory glob
-      if (singlePath[singlePath.length-1]!=='/') {
-        opts_.limit = 1
-        opts_.end = singlePath+'*'
-      }
+    var negatives = [], positives = []
 
-      stream = db.createValueStream(opts_)
-    } else {
-      var negatives = [], positives = [] // separate globs
+    // separate globs
+    globs.forEach(function(glob, i){
+      var a = glob[0] === '!' ? negatives : positives
+      a.push({index: i, glob: glob})
+    })
 
-      globs.forEach(function(glob, i){
-        var a = glob[0] === '!' ? negatives : positives
-        a.push({index: i, glob: glob})
-      })
+    if (!positives.length)
+      return db.createValueStream()
+        .pipe(filterNegatives(negatives.map(toGlob)))
+        .pipe(toVinyl(opts))
 
-      if (!positives.length) {
-        stream = db.createValueStream()
-          .pipe(filterNegatives(negatives.map(toGlob)))
+    // create stream for each positive glob, so indices get reused
+    // the logic for this (and some code) is copied from `glob-stream`
+    var streams = positives.map(function(positive){
+      var glob = positive.glob, i = positive.index
+
+      if (isGlob(glob)) {
+        db.index(glob, function (path, file, globs){
+          return micromatch(path, globs).length ? [] : null
+        });
+
+        var stream = db.streamBy(glob)
+
+        // set file.base to glob base
+        if (!opts.base) stream = stream.pipe(setBase(glob))
       } else {
-        // create stream for each positive glob, so indices get reused
-        // the logic for this (and some code) is copied from `glob-stream`
-        var streams = positives.map(function(positive){
-          var glob = positive.glob, i = positive.index
+        // get by path
+        if (glob[glob.length-1]!=='/') {
+          // assume a single file is wanted
+          var range = { gte: glob, limit: 1, lt: glob+'*'}
+        } else {
+          // effectively a directory glob
+          range = { gt: glob, lt: glob+'\xff' }
+        }
 
-          db.index(glob, function (path, file, globs){
-            return micromatch(path, globs).length ? [] : null
-          });
-
-          var stream = db.streamBy(glob)
-
-          // set file.base to glob base
-          if (!opts.base) stream = stream.pipe(setBase(glob))
-
-          // only filter if negative glob came after this positive glob
-          var negativeGlobs = negatives.filter(indexGreaterThan(i)).map(toGlob)
-
-          if (negativeGlobs.length)
-            stream = stream.pipe(filterNegatives(negativeGlobs))
-
-          return stream
-        })
-
-        // aggregate into stream of unique items
-        stream = ordered(streams).pipe(unique('relative'));
+        stream = db.createValueStream(range)
       }
-    }
 
-    return stream.pipe(through2.obj(function(file, _, next){
-      if (opts.base) file.base = opts.base
-      next(null, decode(file, opts.read))
-    }))
+      // only filter if negative glob came after this positive glob
+      var negativeGlobs = negatives.filter(indexGreaterThan(i)).map(toGlob)
+
+      if (negativeGlobs.length)
+        stream = stream.pipe(filterNegatives(negativeGlobs))
+
+      return stream
+    })
+
+    // aggregate into stream of unique items
+    return ordered(streams).pipe(unique('relative')).pipe(toVinyl(opts))
   }
 
   db.vinylBlobs = function() { return blobs }
@@ -201,6 +194,13 @@ function levelVinyl(db, opts) {
 
   function isVinyl(vinyl) {
     return typeof vinyl == 'object' && '_contents' in vinyl
+  }
+
+  function toVinyl(opts) {
+    return through2.obj(function(file, _, next){
+      if (opts.base) file.base = opts.base
+      next(null, decode(file, opts.read))
+    })
   }
 
   function encode(vinyl) {

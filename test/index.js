@@ -40,6 +40,11 @@ test('glob a directory', function(t){
     contents: new Buffer('hello')
   })
 
+  var file3 = new Vinyl({
+    path: __dirname+'/other/test',
+    contents: new Buffer('beep')
+  })
+
   t.plan(5)
 
   var ws = vinylDb.dest()
@@ -56,12 +61,13 @@ test('glob a directory', function(t){
     }))
 
     vinylDb.src('test/img').pipe(concat(function(files){
-      t.equal(files.length, 0)
+      t.equal(files.length, 0, 'not without slash')
     }))
   })
 
   ws.write(file1)
-  ws.end(file2)
+  ws.write(file2)
+  ws.end(file3)
 })
 
 test('src with opts.base', function(t){
