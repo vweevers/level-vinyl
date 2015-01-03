@@ -11,14 +11,6 @@ test.skip('src with opts.since', function(){
   // TODO
 })
 
-test.skip('src/dest use the glob base', function(){
-  // TODO
-})
-
-test.skip('src/dest with opts.base', function(){
-  // TODO
-})
-
 test.skip('dest() resets streams', function(){
   // TODO
 })
@@ -33,6 +25,33 @@ test.skip('watch()', function(){
 
 test.skip('no conflicts between sublevel blobs', function(){
   // TODO
+})
+
+test.skip('src/dest use the glob base', function(){
+  // TODO
+})
+
+test.skip('src/dest with opts.base', function(){
+  // TODO
+})
+
+test.skip('src glob base', function(t){
+  var vinylDb = create()
+
+  var file = new Vinyl({
+    path: __dirname+'/img/test.jpg',
+    contents: new Buffer('foo')
+  })
+
+  t.plan(2)
+  vinylDb.put(file, function(err){
+    vinylDb.src('test/img/*.jpg').pipe(concat(function(files){
+      var file = files[0]; if (!file) return t.fail()
+
+      t.equal(unixify(file.base), 'test/img')
+      t.equal(unixify(file.relative), 'test.jpg')
+    }))
+  })
 })
 
 test('src with opts.read = false', function(t){

@@ -18,15 +18,19 @@
   "author": "Vincent Weevers (http://vincentweevers.nl)",
   "license": "MIT",
   "dependencies": {
-    "vinyl": "~0.4.6",
     "content-addressable-blob-store": "~4.1.1",
+    "end-of-stream": "~1.1.0",
+    "glob2base": "0.0.12",
+    "is-glob": "^0.3.0",
     "level-map-index": "~0.1.0",
     "micromatch": "~1.0.0",
-    "is-glob": "^0.3.0",
+    "minimatch": "~2.0.1",
+    "ordered-read-streams": "~0.1.0",
     "through2": "~0.6.3",
-    "end-of-stream": "~1.1.0",
-    "xtend": "~4.0.0",
-    "unixify": "^0.1.0"
+    "unique-stream": "~1.0.0",
+    "unixify": "^0.1.0",
+    "vinyl": "~0.4.6",
+    "xtend": "~4.0.0"
   },
   "devDependencies": {
     "tape": "~3.0.3",

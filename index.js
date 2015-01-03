@@ -8,8 +8,19 @@ var Vinyl = require('vinyl')
   , micromatch = require('micromatch')
   , isGlob = require('is-glob')
   , unixify = require('unixify')
+  , Minimatch = require("minimatch").Minimatch
+  , ordered = require('ordered-read-streams')
+  , unique = require('unique-stream')
 
 module.exports = levelVinyl
+
+// function getBase(globs) {
+//   // use first positive glob
+//
+//   var mm = new Minimatch(pattern, options)
+//
+//   glob2base({minimatch: mm})
+// }
 
 function levelVinyl(db, opts) {
   opts = typeof opts == 'string' ? { path: opts } : opts || {}
@@ -25,25 +36,60 @@ function levelVinyl(db, opts) {
   // TODO: auto-remove old indices (but when?)
   // TODO: base should be glob base or opts.base
   // TODO: what if it's an absolute path?
+  // TODO: multiple globs have different bases, so we need to
+  //       aggregate them
   db.src = function(globs, opts) {
     if (typeof globs == 'string') globs = [globs]
     else if (!Array.isArray(globs)) opts = globs, globs = []
 
-    opts = xtend({ read: true }, opts || {})
-
     globs = globs.map(function(glob){ return unixify(glob, true) })
+    opts = xtend({ read: true }, opts || {})
 
     if (!globs.length) {
       var stream = db.createValueStream()
     } else if (globs.length==1 && !isGlob(globs[0])) { // get by path
       stream = db.createValueStream({start: globs[0], limit: 1})
     } else {
-      db.index(globs, function (path, file, globs){
-        return micromatch(path, globs).length ? [] : null
-      });
-      stream = db.streamBy(globs)
+      var negatives = [], positives = [] // separate globs
+
+      globs.forEach(function(glob, i){
+        var a = glob[0] === '!' ? negatives : positives
+        a.push({index: i, glob: glob})
+      })
+
+      if (!positives.length) {
+        // should we support this? without a positive glob,
+        // we dont know the "base".
+        stream = db.createValueStream()
+          .pipe(filterNegatives(negatives.map(toGlob)))
+      } else {
+        // create stream for each positive glob, so indices get reused
+        // the logic for this (and some code) is copied from `glob-stream`
+        var streams = positives.map(function(positive){
+          var glob = positive.glob, i = positive.index
+
+          db.index(glob, function (path, file, globs){
+            return micromatch(path, globs).length ? [] : null
+          });
+
+          var stream = db.streamBy(glob)
+
+          // only filter if negative glob came after this positive glob
+          var negativeGlobs = negatives.filter(indexGreaterThan(i)).map(toGlob)
+
+          if (negativeGlobs.length)
+            stream = stream.pipe(filterNegatives(negativeGlobs))
+
+          return stream
+        })
+
+        // aggregate into stream of unique items
+        stream = ordered(streams).pipe(unique('relative'));
+      }
     }
 
+    // todo: decoding needs "base" info (dependent on the glob),
+    // so we should decode per glob-stream (or set base above)
     return stream.pipe(through2.obj(function(value, _, next){
       next(null, decode(value, opts.read))
     }))
@@ -196,4 +242,24 @@ function customProperties(file) {
   return Object.keys(file).filter(function(prop){
     return prop[0]!=='_' && stdProps.indexOf(prop)<0
   })
+}
+
+function filterNegatives(globs) {
+  globs.unshift('**') // or micromatch won't match
+  return through2.obj(function(file, _, next){
+    if (micromatch(file.relative, globs).length) this.push(file)
+    next()
+  })
+}
+
+// taken from `glob-stream`
+function toGlob(item) {
+  return item.glob
+}
+
+// taken from `glob-stream`
+function indexGreaterThan(index) {
+  return function(obj) {
+    return obj.index > index;
+  };
 }
