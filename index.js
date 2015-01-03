@@ -11,16 +11,9 @@ var Vinyl = require('vinyl')
   , Minimatch = require("minimatch").Minimatch
   , ordered = require('ordered-read-streams')
   , unique = require('unique-stream')
+  , glob2base = require('glob2base')
 
 module.exports = levelVinyl
-
-// function getBase(globs) {
-//   // use first positive glob
-//
-//   var mm = new Minimatch(pattern, options)
-//
-//   glob2base({minimatch: mm})
-// }
 
 function levelVinyl(db, opts) {
   opts = typeof opts == 'string' ? { path: opts } : opts || {}
@@ -58,8 +51,6 @@ function levelVinyl(db, opts) {
       })
 
       if (!positives.length) {
-        // should we support this? without a positive glob,
-        // we dont know the "base".
         stream = db.createValueStream()
           .pipe(filterNegatives(negatives.map(toGlob)))
       } else {
@@ -73,6 +64,9 @@ function levelVinyl(db, opts) {
           });
 
           var stream = db.streamBy(glob)
+
+          // set file.base to glob base
+          if (!opts.base) stream = stream.pipe(setBase(glob))
 
           // only filter if negative glob came after this positive glob
           var negativeGlobs = negatives.filter(indexGreaterThan(i)).map(toGlob)
@@ -88,10 +82,9 @@ function levelVinyl(db, opts) {
       }
     }
 
-    // todo: decoding needs "base" info (dependent on the glob),
-    // so we should decode per glob-stream (or set base above)
-    return stream.pipe(through2.obj(function(value, _, next){
-      next(null, decode(value, opts.read))
+    return stream.pipe(through2.obj(function(file, _, next){
+      if (opts.base) file.base = opts.base
+      next(null, decode(file, opts.read))
     }))
   }
 
@@ -216,8 +209,8 @@ function levelVinyl(db, opts) {
   function decode(file, read) {
     file.relative = path.normalize(file.relative)
 
-    // TODO: does this even matter? because these paths are virtual
-    file.base = file.cwd = blobsPath
+    file.cwd = blobsPath
+    file.base = path.resolve(blobsPath, file.base || '.')
     file.path = path.join(blobsPath, file.relative)
 
     var vinyl = new Vinyl(file)
@@ -241,6 +234,16 @@ function customProperties(file) {
 
   return Object.keys(file).filter(function(prop){
     return prop[0]!=='_' && stdProps.indexOf(prop)<0
+  })
+}
+
+function setBase(glob) {
+  var mm = new Minimatch(glob)
+  var base = glob2base({minimatch: mm})
+
+  return through2.obj(function(file, _, next){
+    file.base = base
+    next(null, file)
   })
 }
 

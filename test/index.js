@@ -27,31 +27,72 @@ test.skip('no conflicts between sublevel blobs', function(){
   // TODO
 })
 
-test.skip('src/dest use the glob base', function(){
-  // TODO
-})
-
-test.skip('src/dest with opts.base', function(){
-  // TODO
-})
-
-test.skip('src glob base', function(t){
+test('src with opts.base', function(t){
   var vinylDb = create()
 
-  var file = new Vinyl({
+  var file1 = new Vinyl({
     path: __dirname+'/img/test.jpg',
     contents: new Buffer('foo')
   })
 
-  t.plan(2)
-  vinylDb.put(file, function(err){
-    vinylDb.src('test/img/*.jpg').pipe(concat(function(files){
-      var file = files[0]; if (!file) return t.fail()
+  var file2 = new Vinyl({
+    path: __dirname+'/docs/foo/test.md',
+    contents: new Buffer('hello')
+  })
 
-      t.equal(unixify(file.base), 'test/img')
-      t.equal(unixify(file.relative), 'test.jpg')
+  t.plan(4)
+
+  var ws = vinylDb.dest()
+
+  eos(ws, function(err){
+    var opts = { base: 'test' }
+    vinylDb.src(['test/img/*.jpg', 'test/**/*.md'], opts).pipe(concat(function(files){
+      if (files.length!==2) return t.fail()
+      var file1 = files[0], file2 = files[1]
+
+      t.equal(file1.base, path.resolve(file1.cwd, 'test'))
+      t.equal(file1.base, file2.base)
+      t.equal(unixify(file1.relative), 'img/test.jpg')
+      t.equal(unixify(file2.relative), 'docs/foo/test.md')
     }))
   })
+
+  ws.write(file1)
+  ws.end(file2)
+})
+
+test('src glob sets base', function(t){
+  var vinylDb = create()
+
+  var file1 = new Vinyl({
+    path: __dirname+'/img/test.jpg',
+    contents: new Buffer('foo')
+  })
+
+  var file2 = new Vinyl({
+    path: __dirname+'/docs/foo/test.md',
+    contents: new Buffer('hello')
+  })
+
+  t.plan(4)
+
+  var ws = vinylDb.dest()
+
+  eos(ws, function(err){
+    vinylDb.src(['test/img/*.jpg', 'test/**/*.md']).pipe(concat(function(files){
+      if (files.length!==2) return t.fail()
+      var file1 = files[0], file2 = files[1]
+
+      t.equal(file1.base, path.resolve(file1.cwd, 'test/img'))
+      t.equal(file1.relative, 'test.jpg')
+
+      t.equal(file2.base, path.resolve(file2.cwd, 'test'))
+      t.equal(unixify(file2.relative), 'docs/foo/test.md')
+    }))
+  })
+
+  ws.write(file1)
+  ws.end(file2)
 })
 
 test('src with opts.read = false', function(t){
