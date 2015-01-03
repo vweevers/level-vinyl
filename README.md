@@ -46,6 +46,28 @@ vinylDb.put(file, function(){
 
 ## api
 
+## progress
+
+In terms of compatibility with gulp / vinyl-fs.
+
+### `src(globs, opts)`
+
+**Differences**:
+
+- `file.contents` is a stream, `opts.buffer` is not supported (use `vinyl-buffer` to convert streams to buffers)
+
+**Features**:
+
+- [x] multiple globs, negation
+- [ ] consistent order (needs test)
+- [x] Base: `file.base` is set to "glob base" or `opts.base`
+- [x] No read: `file.isNull()` when `opts.read == false`
+- [ ] should pass through writes (needs test)
+- [ ] should glob a directory
+- [ ] return dead stream if globs is empty array
+- [ ] throw on invalid glob (not a string or array)
+- [ ] Support `opts.since`
+
 ## install
 
 With [npm](https://npmjs.org) do:
