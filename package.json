@@ -1,0 +1,42 @@
+{
+  "name": "level-vinyl",
+  "version": "0.0.0",
+  "description": "leveldb vinyl adapter and blob store",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/index.js"
+  },
+  "keywords": [
+    "levelup", "vinyl-adapter", "vinyl", "blobs",
+    "blob-store", "virtual", "gulpfriendly"
+  ],
+  "author": "Vincent Weevers (http://vincentweevers.nl)",
+  "license": "MIT",
+  "dependencies": {
+    "vinyl": "~0.4.6",
+    "content-addressable-blob-store": "~4.1.1",
+    "level-map-index": "~0.0.1",
+    "micromatch": "~1.0.0",
+    "is-glob": "^0.3.0",
+    "through2": "~0.6.3",
+    "end-of-stream": "~1.1.0",
+    "xtend": "~4.0.0",
+    "unixify": "^0.1.0"
+  },
+  "devDependencies": {
+    "tape": "~3.0.3",
+    "level-test": "~1.6.6",
+    "level-sublevel": "~6.4.0",
+    "vinyl-buffer": "~1.0.0",
+    "vinyl-fs": "~0.3.13",
+    "vinyl-file": "~1.1.0",
+    "concat-stream": "~1.4.7",
+    "osenv": "~0.1.0"
+  },
+  "repository": "git://github.com/vweevers/level-vinyl",
+  "bugs": "https://github.com/vweevers/level-vinyl/issues",
+  "homepage": "https://github.com/vweevers/level-vinyl",
+  "engines": {
+    "node": ">= 0.10.0"
+  }
+}
