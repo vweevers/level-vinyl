@@ -64,8 +64,8 @@ In terms of compatibility with gulp / vinyl-fs.
 - [x] No read: `file.isNull()` when `opts.read == false`
 - [ ] should pass through writes (needs test)
 - [x] should glob a directory
-- [ ] return dead stream if globs is empty array
-- [ ] throw on invalid glob (not a string or array)
+- [x] return dead stream if globs is empty array
+- [x] throw on invalid glob (not a string or array)
 - [ ] Support `opts.since`
 
 ## install

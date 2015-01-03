@@ -30,13 +30,21 @@ function levelVinyl(db, opts) {
   // TODO: what if it's an absolute path?
   db.src = function(globs, opts) {
     if (typeof globs == 'string') globs = [globs]
-    else if (!Array.isArray(globs)) opts = globs, globs = []
+    else if (!Array.isArray(globs)) throw new Error('Invalid glob')
 
-    globs = globs.map(function(glob){ return unixify(glob, true) })
+    globs = globs.map(function(glob){
+      if (!glob || typeof glob != 'string') throw new Error('Invalid glob')
+      return unixify(glob, true)
+    })
+
     opts = xtend({ read: true }, opts || {})
 
-    if (!globs.length)
-      return db.createValueStream().pipe(toVinyl(opts))
+    if (!globs.length) {
+      // Like vinyl-fs, return a dead stream
+      var stream = through2.obj()
+      process.nextTick(stream.end.bind(stream))
+      return stream
+    }
 
     var negatives = [], positives = []
 
@@ -46,10 +54,13 @@ function levelVinyl(db, opts) {
       a.push({index: i, glob: glob})
     })
 
-    if (!positives.length)
+    var numPositive = positives.length
+
+    if (!numPositive || (numPositive==1 && positives[0]=='**')) {
       return db.createValueStream()
         .pipe(filterNegatives(negatives.map(toGlob)))
         .pipe(toVinyl(opts))
+    }
 
     // create stream for each positive glob, so indices get reused
     // the logic for this (and some code) is copied from `glob-stream`
@@ -258,6 +269,8 @@ function setBase(glob) {
 }
 
 function filterNegatives(globs) {
+  if (!globs.length) return through2.obj()
+
   globs.unshift('**') // or micromatch won't match
   return through2.obj(function(file, _, next){
     if (micromatch(file.relative, globs).length) this.push(file)

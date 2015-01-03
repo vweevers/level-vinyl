@@ -27,6 +27,33 @@ test.skip('no conflicts between sublevel blobs', function(){
   // TODO
 })
 
+test('throws on invalid glob', function(t){
+  var vinylDb = create()
+
+  t.throws(vinylDb.src, 'no arguments')
+  t.throws(vinylDb.src.bind(vinylDb, 123), 'number')
+  t.throws(vinylDb.src.bind(vinylDb, ''), 'empty string')
+  t.throws(vinylDb.src.bind(vinylDb, null), 'null')
+  t.throws(vinylDb.src.bind(vinylDb, [123]), 'array with number')
+  t.throws(vinylDb.src.bind(vinylDb, [null]), 'array with null')
+  t.end()
+})
+
+test('dead stream if globs is empty array', function(t){
+  var vinylDb = create()
+  var file1 = new Vinyl({
+    path: __dirname+'/img/test.jpg',
+    contents: new Buffer('foo')
+  })
+
+  t.plan(1)
+  vinylDb.put(file1, function(){
+    vinylDb.src([]).pipe(concat(function(files){
+      t.equal(files.length, 0)
+    }))
+  })
+})
+
 test('glob a directory', function(t){
   var vinylDb = create()
 
