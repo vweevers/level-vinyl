@@ -4,7 +4,7 @@
   "description": "leveldb vinyl adapter and blob store",
   "main": "index.js",
   "scripts": {
-    "test": "tape test/index.js"
+    "test": "tape test/*.js"
   },
   "keywords": [
     "levelup",
