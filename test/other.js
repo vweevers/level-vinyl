@@ -86,7 +86,7 @@ test('stat', function(t){
         t.ok(mtime <= now, 'has mtime Date')
 
         setTimeout(function(){
-          vinylDb.put(file, function(){
+          vinylDb.dest().on('data', function(file) {
             var ctime2 = file.stat.ctime.getTime()
               , mtime2 = file.stat.mtime.getTime()
 
@@ -96,7 +96,7 @@ test('stat', function(t){
             file.contents = new Buffer('baz')
 
             setTimeout(function(){
-              vinylDb.put(file, function(){
+              vinylDb.put(file, function(err, file){
                 var ctime3 = file.stat.ctime.getTime()
                   , mtime3 = file.stat.mtime.getTime()
 
@@ -104,7 +104,7 @@ test('stat', function(t){
                 t.ok(mtime2<mtime3, 'mtime changed after content change')
               })
             }, 2)
-          })
+          }).end(file)
         }, 2)
       }))
     })

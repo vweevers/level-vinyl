@@ -1,4 +1,10 @@
 var test = require('tape')
+  , create = require('./utils/create-db')
+  , createFile = require('./utils/create-file')
+  , concat = require('concat-stream')
+  , fromFile = require('vinyl-file')
+  , path = require('path')
+  , eos = require('end-of-stream')
 
 test.skip('dest resets streams', function(t){
   // TODO
@@ -23,36 +29,13 @@ test.skip('dest folder', function(t){
   // provided output folder is relative."
 })
 
-test.skip('opts.mode', function(t){
-  // TODO
-  // only applies to files for us
-  // "options.mode Octal permission string specifying mode for any folders that
-  // need to be created for output folder."
-})
-
 test.skip('no conflicts between sublevel blobs', function(t){
-  // TODO
-})
-
-test.skip('should not write null files', function(t){
-  // TODO
-})
-
-test.skip('writes buffers', function(t){
-  // TODO
-})
-
-test.skip('writes streams', function(t){
   // TODO
 })
 
 test.skip('should allow piping multiple dests in streaming mode', function(t){
   // TODO
   // re-emits data
-})
-
-test.skip('should write new files with the default user mode (777)', function(t){
-  // TODO
 })
 
 test.skip('should explode on invalid folder (empty)', function(t){
@@ -62,4 +45,82 @@ test.skip('should explode on invalid folder (empty)', function(t){
 test.skip('path function', function(t) {
   // TODO
   // "a function that returns a path. the function will be provided a vinyl File instance."
+})
+
+test('opts.mode', function(t){
+  t.plan(1)
+
+  var vinylDb = create()
+  fromFile.read(path.join(__dirname, 'fixtures/text.md'), function(err, actual){
+    var dest = vinylDb.dest('', {mode: 0455})
+
+    eos(dest, function(){
+      vinylDb.src('**').on('data', function(file){
+        var stat = file && file.stat
+        if (!stat) return t.fail('no stat')
+        t.equal(stat.mode & 0777, 0455)
+      })
+    })
+
+    dest.end(actual)
+  })
+})
+
+test('default mode is 777', function(t){
+  t.plan(1)
+
+  var vinylDb = create()
+  fromFile.read(path.join(__dirname, 'fixtures/text.md'), function(err, actual){
+    var dest = vinylDb.dest()
+
+    eos(dest, function(){
+      vinylDb.src('**').on('data', function(file){
+        var stat = file && file.stat
+        if (!stat) return t.fail('no stat')
+        t.equal(stat.mode & 0777, 0777)
+      })
+    })
+
+    dest.end(actual)
+  })
+})
+
+test('should not write null files', function(t){
+  var vinylDb = create()
+    , file = createFile('foo', null)
+
+  t.plan(2)
+
+  t.ok(file.isNull(), 'isNull')
+  vinylDb.put(file, function(){
+    vinylDb.get(file.relative, function(err, same){
+      t.ok(err, 'no file saved')
+    })
+  })
+})
+
+test('writes buffers and streams', function(t){
+  var fixture = path.join(__dirname, 'fixtures/text.md')
+
+  t.plan(4)
+
+  testFixture({buffer: false})
+  testFixture({buffer: true})
+
+  function testFixture(opts) {
+    var vinylDb = create()
+
+    fromFile.read(fixture, opts, function(err, file){
+      if (opts.buffer) t.ok(file.isBuffer(), 'isBuffer')
+      else t.ok(file.isStream(), 'isStream')
+
+      vinylDb.put(file, function(){
+        vinylDb.get(file.relative, function(err, same){
+          same.contents.pipe(concat(function(buf){
+            t.equal(String(buf).trim(), '# text', 'file saved')
+          }))
+        })
+      })
+    })
+  }
 })

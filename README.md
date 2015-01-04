@@ -72,6 +72,7 @@ In terms of compatibility with gulp / vinyl-fs.
 **Differences:**
 
 - `file.contents` is a stream, `opts.buffer` is not supported (use `vinyl-buffer` to convert streams to buffers)
+- Only streams regular files (`file.stat.isFile()` is always true).
 
 **Features:**
 
@@ -91,19 +92,19 @@ In terms of compatibility with gulp / vinyl-fs.
 
 - Files are saved in leveldb with a relative path, so the behavior of `dest`
   is gonna be different from vinyl-fs. Under consideration.
-- Only saves a subset of `file.stat`: mtime, ctime, mode and size. Always sets the file flag on mode (in other words: `stat.isFile()` is always true).
+- Saves a small subset of `file.stat`: mtime, ctime, mode and size. Mode is 777
+  or `opts.mode`; only permission flags are saved.
 - Doesn't have a notion of directories
 
 **Features:**
 
 - [ ] resets streams
-- [ ] updates vinyl files (cwd, base, path, mode)
-- [ ] opts.mode
-- [ ] doesn't write null files (needs specific test)
-- [ ] writes buffers (needs specific test)
-- [ ] writes streams (needs specific test)
+- [ ] updates files after write (cwd, base, path, mode)
+- [x] opts.mode
+- [x] doesn't write null files
+- [x] writes buffers
+- [x] writes streams
 - [ ] should allow piping multiple dests
-- [ ] new files get file mode 777
 - [ ] throw on invalid (empty) folder
 - [ ] support `path` as function
 

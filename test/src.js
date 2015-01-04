@@ -235,3 +235,26 @@ test('throws on invalid glob', function(t){
   t.throws(vinylDb.src.bind(vinylDb, [null]), 'array with null')
   t.end()
 })
+
+test('streams regular files', function(t){
+  t.plan(1)
+
+  var constants = process.binding('constants')
+    , S_IFMT = constants.S_IFMT   // bit mask for the file type bit fields
+    , S_IFREG = constants.S_IFREG // regular file
+
+  var vinylDb = create()
+  fromFile.read(path.join(__dirname, 'fixtures/text.md'), function(err, actual){
+    var dest = vinylDb.dest()
+
+    eos(dest, function(){
+      vinylDb.src('**').on('data', function(file){
+        var stat = file && file.stat
+        if (!stat) return t.fail('no stat')
+        t.equal(stat.mode & S_IFMT, S_IFREG)
+      })
+    })
+
+    dest.end(actual)
+  })
+})

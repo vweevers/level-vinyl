@@ -12,8 +12,8 @@ var Vinyl = require('vinyl')
   , ordered = require('ordered-read-streams')
   , unique = require('unique-stream')
   , glob2base = require('glob2base')
-  , cloneStats = require('clone-stats')
-  , Mode = require('stat-mode')
+  , Stats = require('fs').Stats
+  , constants = require('constants')
 
 module.exports = levelVinyl
 
@@ -130,9 +130,20 @@ function levelVinyl(db, opts) {
   db.put = function(key, vinyl, opts, cb) {
     if (typeof key != 'string') cb = opts, opts = vinyl, vinyl = key, key = vinyl.relative
     if (typeof opts == 'function') cb = opts, opts = {}
+    if (!opts) opts = {}
+
     if (!isVinyl(vinyl) || opts.valueEncoding || opts.encoding)
       return put.call(db, key, vinyl, opts, cb) // as-is
-    db.batch([{type: 'put', value: vinyl, key: key}], opts, cb)
+
+    // dont modify incoming files?
+    // vinyl = vinyl.clone()
+
+    save(vinyl, opts, function(err, value, key){
+      if (err || value==null) return cb(err, vinyl)
+      put.call(db, key, value, opts, function(err){
+        cb(err, vinyl)
+      })
+    })
   }
 
   // note that blobs are auto-deleted in a post hook (see below)
@@ -141,18 +152,17 @@ function levelVinyl(db, opts) {
     del.call(db, key, cb)
   }
 
-  db.dest = function(folder) {
+  db.dest = function(path, opts) {
     var stream = through2.obj(function(vinyl, _, next){
-      db.put(vinyl, function (err) {
-        next(err, vinyl)
-      })
+      db.put(vinyl, opts, next)
     })
     stream.resume()
     return stream
   }
 
+  // extra opts: `mode`
   db.batch = function(ops, opts, cb) {
-    if (typeof opts == 'function') cb = opts, opts = null
+    if (typeof opts == 'function') cb = opts, opts = {}
 
     var len = ops.length
 
@@ -161,28 +171,22 @@ function levelVinyl(db, opts) {
       while(i<len && (ops[i].type!='put' || !isVinyl(ops[i].value))) i++
       if (i==len) return batch.call(db, ops, cb)
 
-      var op = ops[i], vinyl = op.value, oldDigest = vinyl.digest
+      var op = ops[i], vinyl = op.value
 
-      writeContents(vinyl, function(err, size){
+      op.mode = op.mode || opts.mode
+
+      save(vinyl, op, function(err, value, key){
         if (err) return cb(err)
-        op.value = encode(vinyl, oldDigest, size)
-        op.key = op.value.relative
+
+        if (value==null) {
+          ops = ops.splice(i, 1); --len
+          return setImmediate(next.bind(null, i))
+        }
+
+        op.value = value; op.key = key
         setImmediate(next.bind(null, i+1))
       })
     })(0)
-
-    function writeContents(vinyl, cb) {
-      // todo: should we delete the blob? (not if opts.read was false)
-      if (vinyl.isNull()) return cb()
-
-      // save contents in blob store
-      var ws = blobs.createWriteStream()
-      eos(vinyl.pipe(ws), function(err) {
-        if (err) return cb(err)
-        vinyl.digest = ws.key
-        cb(null, ws.size)
-      })
-    }
   }
 
   // remove blob on file removal
@@ -215,58 +219,42 @@ function levelVinyl(db, opts) {
     })
   }
 
-  function encode(vinyl, oldDigest, size) {
-    var plain = {
-      relative: unixify(vinyl.relative, true),
-      stat: encodeStat(vinyl, oldDigest, size)
-    }
+  // save contents in blob store and update stat
+  function save(vinyl, opts, cb) {
+    if (vinyl.isNull()) return cb()
 
-    customProperties(vinyl).forEach(function(prop){
-      var val = vinyl[prop]
-      if (val!=null) this[prop] = val
-    }, plain)
+    var ws = blobs.createWriteStream()
 
-    return plain
-  }
+    eos(vinyl.pipe(ws), function(err) {
+      if (err) return cb(err)
 
-  function encodeStat(vinyl, oldDigest, size) {
-    var now = new Date, stat = vinyl.stat || {}
+      var stat = vinyl.stat = vinyl.stat || new Stats
+        , oldDigest = vinyl.digest
+        , now = new Date
 
-    if (oldDigest && vinyl.digest!==oldDigest)
-      stat.mtime = now
+      vinyl.digest = ws.key
 
-    stat = {
-      ctime: now,
-      mtime: stat.mtime || now,
-      mode : stat.mode  || 0,
-      size : size
-    }
+      stat.size = ws.size
+      stat.ctime = now
 
-    var mode = new Mode(stat);
-    mode.isFile(true) // always set file flag
+      if (!stat.mtime || (oldDigest && vinyl.digest!==oldDigest))
+        stat.mtime = now
 
-    // copy to vinyl as fs.Stat object
-    vinyl.stat = cloneStats(stat)
+      // default perm is 777, always set file flag
+      stat.mode = (opts.mode || 0777) | constants.S_IFREG
 
-    stat.ctime = +stat.ctime
-    stat.mtime = +stat.mtime
+      var value = encode(vinyl)
+      var key = value.relative
 
-    return stat
-  }
-
-  function decodeStat(file) {
-    var stat = file.stat = cloneStats(file.stat)
-    stat.mtime = new Date(stat.mtime)
-    stat.ctime = new Date(stat.ctime)
+      cb(null, value, key)
+    })
   }
 
   function decode(file, read) {
-    file.relative = path.normalize(file.relative)
-    file.cwd = blobsPath
+    file.cwd  = blobsPath
     file.base = path.resolve(blobsPath, file.base || '.')
-    file.path = path.join(blobsPath, file.relative)
-
-    decodeStat(file)
+    file.path = path.join(blobsPath, path.normalize(file.relative))
+    file.stat = decodeStat(file.stat)
 
     var vinyl = new Vinyl(file)
 
@@ -290,6 +278,40 @@ function customProperties(file) {
   return Object.keys(file).filter(function(prop){
     return prop[0]!=='_' && stdProps.indexOf(prop)<0
   })
+}
+
+function encode(vinyl) {
+  var plain = {
+    relative: unixify(vinyl.relative, true),
+    stat: encodeStat(vinyl.stat)
+  }
+
+  customProperties(vinyl).forEach(function(prop){
+    var val = vinyl[prop]
+    if (val!=null) this[prop] = val
+  }, plain)
+
+  return plain
+}
+
+function encodeStat(stat) {
+  return {
+    ctime: +stat.ctime,
+    mtime: +stat.mtime,
+    mode : 0777 & stat.mode, // only save permissions
+    size : stat.size
+  }
+}
+
+function decodeStat(plain) {
+  var stat = new Stats()
+
+  stat.mtime = new Date(plain.mtime)
+  stat.ctime = new Date(plain.ctime)
+  stat.mode  = constants.S_IFREG | plain.mode // set regular file flag
+  stat.size  = plain.size
+
+  return stat
 }
 
 function setBase(glob) {
