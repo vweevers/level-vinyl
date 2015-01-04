@@ -10,14 +10,20 @@ Jump to: [example](#example) / [api](#api) / [progress](#progress) / [install](#
 
 ## why?
 
-Because `level-vinyl` is a vinyl adapter, you can use 1000+ gulp plugins to transform files. Because the file metadata is saved in leveldb, you can:
+Because level-vinyl is a vinyl adapter, you can:
 
-- (theoretically) pipe to and from other databases, local and elsewhere. Use `opts.since` to only stream new files!
+- use 1000+ gulp plugins to transform files
+- use `src('src/*.png')` and `dest('assets')` like a pro.
+- stream only modified files with `opts.since`
+
+Because level-vinyl saves metadata to leveldb (by unixified relative path), you can:
+
+- pipe to and from other databases, local and elsewhere (theoretically).
 - index file properties, do map-reduces
 - use sublevels to for example, save multiple versions of the same files
 - use triggers and hooks to process new files
 
-In other words, this is a nice abstraction for a file processing service.
+**In other words, this is a nice abstraction for a file processing service.**
 
 ## example
 
