@@ -6,6 +6,7 @@ var test = require('tape')
   , create = require('./util-create-db')
   , path = require('path')
   , unixify = require('unixify')
+  , fromFile = require('vinyl-file')
 
 test.skip('src with opts.since', function(){
   // TODO
@@ -15,16 +16,78 @@ test.skip('dest() resets streams', function(){
   // TODO
 })
 
-test.skip('stat', function(){
-  // TODO
-})
-
 test.skip('watch()', function(){
   // TODO
 })
 
 test.skip('no conflicts between sublevel blobs', function(){
   // TODO
+})
+
+test.skip('src should pass through writes', function(t){})
+
+test('stat', function(t){
+  var vinylDb = create()
+
+  t.test('stat is copied', function(t){
+    t.plan(3)
+    fromFile.read(path.join(__dirname, 'fixtures/text.md'), function(err, actual){
+      vinylDb.put(actual, function(){
+        vinylDb.src('**/*.md').pipe(concat(function(files){
+          var file = files[0], stat = file && file.stat
+          if (!stat) return t.fail()
+
+          t.equal(stat.isFile(), true, 'is a file')
+          t.ok(stat.ctime.getTime() >= actual.stat.ctime.getTime(), 'has ctime')
+          t.equal(stat.mtime.getTime(), actual.stat.mtime.getTime(), 'mtime copied')
+        }))
+      })
+    })
+  })
+
+  t.test('stat is created and updated', function(t){
+    var file = new Vinyl({
+      path: __dirname+'/img/test.jpg',
+      contents: new Buffer('foo')
+    })
+
+    t.plan(7)
+    vinylDb.put(file, function(){
+      vinylDb.src('**/*.jpg').pipe(concat(function(files){
+        var file = files[0], stat = file && file.stat
+        if (!stat) return t.fail()
+
+        t.equal(stat.isFile(), true, 'is a file')
+
+        var now = Date.now()
+          , ctime = stat.ctime.getTime()
+          , mtime = stat.mtime.getTime()
+
+        t.ok(ctime <= now, 'has ctime Date')
+        t.ok(mtime <= now, 'has mtime Date')
+
+        setTimeout(function(){
+          vinylDb.put(file, function(){
+            var ctime2 = file.stat.ctime.getTime()
+              , mtime2 = file.stat.mtime.getTime()
+
+            t.ok(ctime<ctime2, 'ctime changed')
+            t.equal(mtime, mtime2, 'mtime unchanged')
+
+            file.contents = new Buffer('baz')
+
+            vinylDb.put(file, function(){
+              var ctime3 = file.stat.ctime.getTime()
+                , mtime3 = file.stat.mtime.getTime()
+
+              t.ok(ctime2<ctime3, 'ctime changed')
+              t.ok(mtime2<mtime3, 'mtime changed after content change')
+            })
+          })
+        }, 1)
+      }))
+    })
+  })
 })
 
 test('throws on invalid glob', function(t){

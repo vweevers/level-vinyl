@@ -12,6 +12,8 @@ var Vinyl = require('vinyl')
   , ordered = require('ordered-read-streams')
   , unique = require('unique-stream')
   , glob2base = require('glob2base')
+  , cloneStats = require('clone-stats')
+  , Mode = require('stat-mode')
 
 module.exports = levelVinyl
 
@@ -166,11 +168,11 @@ function levelVinyl(db, opts) {
       while(i<len && (ops[i].type!='put' || !isVinyl(ops[i].value))) i++
       if (i==len) return batch.call(db, ops, cb)
 
-      var op = ops[i], vinyl = op.value
+      var op = ops[i], vinyl = op.value, oldDigest = vinyl.digest
 
-      writeContents(vinyl, function(err){
+      writeContents(vinyl, function(err, size){
         if (err) return cb(err)
-        op.value = encode(vinyl)
+        op.value = encode(vinyl, oldDigest, size)
         op.key = op.value.relative
         setImmediate(next.bind(null, i+1))
       })
@@ -183,8 +185,9 @@ function levelVinyl(db, opts) {
       // save contents in blob store
       var ws = blobs.createWriteStream()
       eos(vinyl.pipe(ws), function(err) {
-        if (!err) vinyl.digest = ws.key
-        cb(err)
+        if (err) return cb(err)
+        vinyl.digest = ws.key
+        cb(null, ws.size)
       })
     }
   }
@@ -214,12 +217,13 @@ function levelVinyl(db, opts) {
     })
   }
 
-  function encode(vinyl) {
+  function encode(vinyl, oldDigest, size) {
     var plain = {
-      relative: unixify(vinyl.relative, true)
+      relative: unixify(vinyl.relative, true),
+      stat: encodeStat(vinyl, oldDigest, size)
     }
 
-    customProperties(vinyl).concat('stat').forEach(function(prop){
+    customProperties(vinyl).forEach(function(prop){
       var val = vinyl[prop]
       if (val!=null) this[prop] = val
     }, plain)
@@ -227,12 +231,41 @@ function levelVinyl(db, opts) {
     return plain
   }
 
+  function encodeStat(vinyl, oldDigest, size) {
+    var now = new Date, stat = vinyl.stat || {}
+
+    if (oldDigest && vinyl.digest!==oldDigest)
+      stat.mtime = now
+
+    stat = {
+      ctime: now,
+      mtime: stat.mtime || now,
+      mode : stat.mode  || 0,
+      size : size
+    }
+
+    var mode = new Mode(stat);
+    mode.isFile(true) // always set file flag
+
+    // copy to vinyl as fs.Stat object
+    vinyl.stat = cloneStats(stat)
+
+    return stat
+  }
+
+  function decodeStat(file) {
+    var stat = file.stat = cloneStats(file.stat)
+    stat.mtime = new Date(stat.mtime)
+    stat.ctime = new Date(stat.ctime)
+  }
+
   function decode(file, read) {
     file.relative = path.normalize(file.relative)
-
     file.cwd = blobsPath
     file.base = path.resolve(blobsPath, file.base || '.')
     file.path = path.join(blobsPath, file.relative)
+
+    decodeStat(file)
 
     var vinyl = new Vinyl(file)
 
