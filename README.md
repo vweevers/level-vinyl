@@ -66,7 +66,7 @@ In terms of compatibility with gulp / vinyl-fs.
 - [x] should glob a directory
 - [x] return dead stream if globs is empty array
 - [x] throw on invalid glob (not a string or array)
-- [ ] Support `opts.since`
+- [x] Support `opts.since`
 
 ## install
 

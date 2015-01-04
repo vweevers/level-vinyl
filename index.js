@@ -211,7 +211,12 @@ function levelVinyl(db, opts) {
   }
 
   function toVinyl(opts) {
+    var since = opts.since ? +opts.since : 0
+
     return through2.obj(function(file, _, next){
+      if (since && since >= file.stat.mtime)
+        return next()
+
       if (opts.base) file.base = opts.base
       next(null, decode(file, opts.read))
     })
@@ -249,6 +254,9 @@ function levelVinyl(db, opts) {
 
     // copy to vinyl as fs.Stat object
     vinyl.stat = cloneStats(stat)
+
+    stat.ctime = +stat.ctime
+    stat.mtime = +stat.mtime
 
     return stat
   }

@@ -8,10 +8,6 @@ var test = require('tape')
   , unixify = require('unixify')
   , fromFile = require('vinyl-file')
 
-test.skip('src with opts.since', function(){
-  // TODO
-})
-
 test.skip('dest() resets streams', function(){
   // TODO
 })
@@ -25,6 +21,37 @@ test.skip('no conflicts between sublevel blobs', function(){
 })
 
 test.skip('src should pass through writes', function(t){})
+
+test('src with opts.since', function(t){
+  var vinylDb = create()
+
+  var file1 = new Vinyl({
+    path: __dirname+'/file1',
+    contents: new Buffer('one'),
+    stat: { mtime: new Date('1980-01-01') }
+  })
+
+  var file2 = new Vinyl({
+    path: __dirname+'/file2',
+    contents: new Buffer('two'),
+    stat: { mtime: new Date }
+  })
+
+  t.plan(1)
+
+  var ws = vinylDb.dest()
+
+  eos(ws, function(err){
+    var opts = { since: new Date('1990-01-01') }
+    vinylDb.src('**', opts).pipe(concat(function(files){
+      if (files.length!==1) return t.fail()
+      t.equal(files[0].relative, file2.relative)
+    }))
+  })
+
+  ws.write(file1)
+  ws.end(file2)
+})
 
 test('stat', function(t){
   var vinylDb = create()
