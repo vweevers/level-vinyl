@@ -101,25 +101,25 @@ test('should not write null files', function(t){
 
 test('writes buffers and streams', function(t){
   var fixture = path.join(__dirname, 'fixtures/text.md')
+    , vinylDb = create()
 
   t.plan(4)
 
-  testFixture({buffer: false})
-  testFixture({buffer: true})
+  fromFile.read(fixture, {buffer: false}, function(err, file1){
+    t.ok(file1.isStream(), 'isStream')
+    testSave(file1)
 
-  function testFixture(opts) {
-    var vinylDb = create()
+    var file2 = createFile('foo', '# text')
+    t.ok(file2.isBuffer(), 'isBuffer')
+    testSave(file2)
+  })
 
-    fromFile.read(fixture, opts, function(err, file){
-      if (opts.buffer) t.ok(file.isBuffer(), 'isBuffer')
-      else t.ok(file.isStream(), 'isStream')
-
-      vinylDb.put(file, function(){
-        vinylDb.get(file.relative, function(err, same){
-          same.contents.pipe(concat(function(buf){
-            t.equal(String(buf).trim(), '# text', 'file saved')
-          }))
-        })
+  function testSave(file) {
+    vinylDb.put(file, function(){
+      vinylDb.get(file.relative, function(err, same){
+        same.contents.pipe(concat(function(buf){
+          t.equal(String(buf).trim(), '# text', 'file saved')
+        }))
       })
     })
   }
