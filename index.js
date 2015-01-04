@@ -141,13 +141,6 @@ function levelVinyl(db, opts) {
     del.call(db, key, cb)
   }
 
-  // TODO: adhere to gulp rules:
-  // - https://github.com/gulpjs/gulp/blob/master/docs/API.md
-  // - https://github.com/wearefractal/vinyl-fs
-  // TODO: "The file will be modified after being written to this stream:
-  // cwd, base, and path will be overwritten to match the folder
-  // stat.mode will be overwritten if you used a mode parameter
-  // contents will have it's position reset to the beginning if it is a stream"
   db.dest = function(folder) {
     var stream = through2.obj(function(vinyl, _, next){
       db.put(vinyl, function (err) {

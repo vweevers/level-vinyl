@@ -12,6 +12,40 @@ test.skip('src should pass through writes', function(t){
   // TODO
 })
 
+// should test these, because we use a different glob implementation
+test.skip('glob options', function(t){
+  t.test('glob matchBase', function(t){
+    // If the pattern has no slashes in it, then it will
+    // seek for any file anywhere in the tree with a matching basename.
+    // For example, *.js would match test/simple/basic.js.
+  })
+
+  t.test('glob dotfiles', function(t){
+    // dot Include .dot files in normal matches and globstar matches.
+    // Note that an explicit dot in a portion of the pattern will always match dot files.
+  })
+
+  t.test('glob nobrace', function(t){
+    // nobrace Do not expand {a,b} and {1..3} brace sets.
+  })
+
+  t.test('glob noglobstar', function(t){
+    // noglobstar Do not match ** against multiple filenames. (Ie, treat it as a normal * instead.)
+  })
+
+  t.test('glob noext', function(t){
+    // noext Do not match +(a|b) "extglob" patterns.
+  })
+
+  t.test('glob nonegate', function(t){
+    // nonegate Suppress negate behavior.
+  })
+
+  t.test('glob nocomment', function(t){
+    // nocomment Suppress comment behavior.
+  })
+})
+
 test('src with glob', function(t){
   var vinylDb = create()
     , file = createFile('testfile', 'foo')

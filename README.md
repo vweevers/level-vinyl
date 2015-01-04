@@ -6,7 +6,18 @@ addressable blob store, file metadata in leveldb. Supports globbing, but no
 
 [![npm status](http://img.shields.io/npm/v/level-vinyl.svg?style=flat-square)](https://www.npmjs.org/package/level-vinyl) [![Stability](http://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square)](http://nodejs.org/api/documentation.html#documentation_stability_index) [![Travis build status](https://img.shields.io/travis/vweevers/level-vinyl.svg?style=flat-square&label=travis)](http://travis-ci.org/vweevers/level-vinyl) [![AppVeyor build status](https://img.shields.io/appveyor/ci/vweevers/level-vinyl.svg?style=flat-square&label=appveyor)](https://ci.appveyor.com/project/vweevers/level-vinyl) [![Dependency status](https://img.shields.io/david/vweevers/level-vinyl.svg?style=flat-square)](https://david-dm.org/vweevers/level-vinyl)
 
-Jump to: [api](#api) / [install](#install) / [license](#license)
+Jump to: [example](#example) / [api](#api) / [progress](#progress) / [install](#install) / [license](#license)
+
+## why?
+
+Because `level-vinyl` is a vinyl adapter, you can use 1000+ gulp plugins to transform files. Because the file metadata is saved in leveldb, you can:
+
+- (theoretically) pipe to and from other databases, local and elsewhere. Use `opts.since` to only stream new files!
+- index file properties, do map-reduces
+- use sublevels to for example, save multiple versions of the same files
+- use triggers and hooks to process new files
+
+In other words, this is a nice abstraction for a file processing service.
 
 ## example
 
@@ -52,11 +63,11 @@ In terms of compatibility with gulp / vinyl-fs.
 
 ### `src(globs, opts)`
 
-**Differences**:
+**Differences:**
 
 - `file.contents` is a stream, `opts.buffer` is not supported (use `vinyl-buffer` to convert streams to buffers)
 
-**Features**:
+**Features:**
 
 - [x] multiple globs, negation
 - [ ] consistent order (needs test)
@@ -67,6 +78,28 @@ In terms of compatibility with gulp / vinyl-fs.
 - [x] return dead stream if globs is empty array
 - [x] throw on invalid glob (not a string or array)
 - [x] Support `opts.since`
+
+### `dest(path, opts)`
+
+**Differences:**
+
+- Files are saved in leveldb with a relative path, so the behavior of `dest`
+  is gonna be different from vinyl-fs. Under consideration.
+- Only saves a subset of `file.stat`: mtime, ctime, mode and size. Always sets the file flag on mode (in other words: `stat.isFile()` is always true).
+- Doesn't have a notion of directories
+
+**Features:**
+
+- [ ] resets streams
+- [ ] updates vinyl files (cwd, base, path, mode)
+- [ ] opts.mode
+- [ ] doesn't write null files (needs specific test)
+- [ ] writes buffers (needs specific test)
+- [ ] writes streams (needs specific test)
+- [ ] should allow piping multiple dests
+- [ ] new files get file mode 777
+- [ ] throw on invalid (empty) folder
+- [ ] support `path` as function
 
 ## install
 
