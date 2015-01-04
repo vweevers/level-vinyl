@@ -251,9 +251,10 @@ function levelVinyl(db, opts) {
   }
 
   function decode(file, read) {
-    file.cwd  = blobsPath
-    file.base = path.resolve(blobsPath, file.base || '.')
-    file.path = path.join(blobsPath, path.normalize(file.relative))
+    var cwd = file.cwd = process.cwd()
+
+    file.base = path.resolve(cwd, file.base || '.')
+    file.path = path.join(cwd, path.normalize(file.relative))
     file.stat = decodeStat(file.stat)
 
     var vinyl = new Vinyl(file)
