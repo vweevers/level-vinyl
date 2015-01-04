@@ -103,15 +103,17 @@ test('stat', function(t){
 
             file.contents = new Buffer('baz')
 
-            vinylDb.put(file, function(){
-              var ctime3 = file.stat.ctime.getTime()
-                , mtime3 = file.stat.mtime.getTime()
+            setTimeout(function(){
+              vinylDb.put(file, function(){
+                var ctime3 = file.stat.ctime.getTime()
+                  , mtime3 = file.stat.mtime.getTime()
 
-              t.ok(ctime2<ctime3, 'ctime changed')
-              t.ok(mtime2<mtime3, 'mtime changed after content change')
-            })
+                t.ok(ctime2<ctime3, 'ctime changed')
+                t.ok(mtime2<mtime3, 'mtime changed after content change')
+              })
+            }, 2)
           })
-        }, 1)
+        }, 2)
       }))
     })
   })
