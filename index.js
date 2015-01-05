@@ -14,6 +14,7 @@ var Vinyl = require('vinyl')
   , glob2base = require('glob2base')
   , Stats = require('fs').Stats
   , constants = require('constants')
+  , EventEmitter = require('events').EventEmitter
 
 module.exports = levelVinyl
 
@@ -70,9 +71,7 @@ function levelVinyl(db, opts) {
       var glob = positive.glob, i = positive.index
 
       if (isGlob(glob)) {
-        db.index(glob, function (path, file, globs){
-          return micromatch(path, globs).length ? [] : null
-        });
+        db.index(glob, indexGlob);
 
         var stream = db.streamBy(glob)
 
@@ -180,6 +179,64 @@ function levelVinyl(db, opts) {
 
     stream.resume()
     return stream
+  }
+
+  // [pattern(s)][, opts][, cb])
+  db.watch = function(patterns, opts, cb) {
+    if (typeof patterns == 'function') cb = patterns, opts = {}, patterns = null
+    else if (typeof opts == 'function') cb = opts, opts = {}
+
+    opts = xtend({ debounceDelay: 500 }, opts || {})
+
+    var changes = {}
+
+    function debounce(path, change) {
+      var has = changes[path]
+      changes[path] = change
+      if (!has) setTimeout(function(){
+        var change = changes[path]
+        delete changes[path]
+        emitter.emit('change', {type: change, path: path})
+      }, opts.debounceDelay)
+    }
+
+    var removeHook = db.post(function(op){
+      var path = op.key
+        , patterns = emitter.patterns
+
+      if (!patterns.length || !micromatch(path, patterns).length) {
+        return emitter.emit('nomatch', path)
+      }
+
+      debounce(path, op.type=='del' ? 'deleted' : 'changed')
+    })
+
+    var emitter = new EventEmitter()
+
+    if (opts.maxListeners)
+      emitter.setMaxListeners(opts.maxListeners)
+
+    emitter.patterns = []
+
+    emitter.add = function(patterns, cb) {
+      this.patterns = this.patterns.concat(patterns)
+    }
+
+    emitter.remove = function(patterns) {
+      if (typeof patterns == 'string') var negative = '!' + patterns
+      else negative = patterns.map(function(p){ return '!'+p })
+      this.patterns = this.patterns.concat(negative)
+    }
+
+    emitter.end = function() {
+      removeHook()
+      emitter.emit('end')
+    }
+
+    if (patterns) emitter.add(patterns)
+    if (cb) emitter.on('change', cb)
+
+    return emitter
   }
 
   // extra opts: `mode`
@@ -355,6 +412,10 @@ function filterNegatives(globs) {
     if (micromatch(file.relative, globs).length) this.push(file)
     next()
   })
+}
+
+function indexGlob(path, file, globs){
+  return micromatch(path, globs).length ? [] : null
 }
 
 // taken from `glob-stream`

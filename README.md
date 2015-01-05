@@ -1,7 +1,7 @@
 # level-vinyl
 
 > leveldb vinyl adapter and blob store. Saves file contents in a content
-addressable blob store, file metadata in leveldb. Supports globbing, most of the vinyl-fs / gulp options and emits streaming vinyl files.
+addressable blob store, file metadata in leveldb. Supports globbing, most of the vinyl-fs / gulp 4.0 options and emits streaming vinyl files.
 
 [![npm status](http://img.shields.io/npm/v/level-vinyl.svg?style=flat-square)](https://www.npmjs.org/package/level-vinyl) [![Travis build status](https://img.shields.io/travis/vweevers/level-vinyl.svg?style=flat-square&label=travis)](http://travis-ci.org/vweevers/level-vinyl) [![AppVeyor build status](https://img.shields.io/appveyor/ci/vweevers/level-vinyl.svg?style=flat-square&label=appveyor)](https://ci.appveyor.com/project/vweevers/level-vinyl) [![Dependency status](https://img.shields.io/david/vweevers/level-vinyl.svg?style=flat-square)](https://david-dm.org/vweevers/level-vinyl)
 
@@ -69,7 +69,7 @@ vinylDb.put(file, function(){
 
 In terms of compatibility with gulp / vinyl-fs.
 
-### `src(globs, opts)`
+### `src(globs[, opts])`
 
 **Differences:**
 
@@ -89,7 +89,7 @@ In terms of compatibility with gulp / vinyl-fs.
 - [x] Support `opts.since`
 - [ ] set glob opts (`nobrace` etc.)
 
-### `dest(path, opts)`
+### `dest([path][, opts])`
 
 **Differences:**
 
@@ -111,6 +111,32 @@ with `path`. Note that `dest('/docs')` does the same as `dest('docs')`.
 - [x] <strike>throw on invalid (empty) folder</strike>
 - [x] support `path` as function (gets a vinyl file, should return a path)
 - [x] support `opts.cwd` (irrelevant for save, but does set `file.cwd`)
+
+### `watch([pattern(s)][, opts][, cb])`
+
+Not yet implemented.
+
+**Differences:**
+
+- emits change events with relative paths
+- no `ready` event or callback argument for `add()`, because initialization is synchronous
+- does not support the change types "renamed" and "added"
+
+**Features:**
+
+- [x] add `cb` as change listener
+- [x] `opts.debounceDelay`: debounce events for the same file/event, default delay is 500
+- [x] `opts.maxListeners`
+- [ ] keeps process alive
+- [x] does nothing if `patterns` is empty
+
+Returns an EventEmitter with these features:
+
+- [x] emits `change` with `{type, path}` data where type is "changed" or "deleted".
+- [x] `.end()`: unwatch and emit "end"
+- [x] `.add(patterns)`: add patterns to be watched
+- [x] `.remove(path)`: "removes a file or directory from being watched. Does not recurse directories"
+- [x] emits `nomatch`
 
 ## install
 
