@@ -1,10 +1,9 @@
 # level-vinyl
 
 > leveldb vinyl adapter and blob store. Saves file contents in a content
-addressable blob store, file metadata in leveldb. Supports globbing, but no
-"base" magic yet.
+addressable blob store, file metadata in leveldb. Supports globbing, most of the vinyl-fs / gulp options and emits streaming vinyl files.
 
-[![npm status](http://img.shields.io/npm/v/level-vinyl.svg?style=flat-square)](https://www.npmjs.org/package/level-vinyl) [![Stability](http://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square)](http://nodejs.org/api/documentation.html#documentation_stability_index) [![Travis build status](https://img.shields.io/travis/vweevers/level-vinyl.svg?style=flat-square&label=travis)](http://travis-ci.org/vweevers/level-vinyl) [![AppVeyor build status](https://img.shields.io/appveyor/ci/vweevers/level-vinyl.svg?style=flat-square&label=appveyor)](https://ci.appveyor.com/project/vweevers/level-vinyl) [![Dependency status](https://img.shields.io/david/vweevers/level-vinyl.svg?style=flat-square)](https://david-dm.org/vweevers/level-vinyl)
+[![npm status](http://img.shields.io/npm/v/level-vinyl.svg?style=flat-square)](https://www.npmjs.org/package/level-vinyl) [![Travis build status](https://img.shields.io/travis/vweevers/level-vinyl.svg?style=flat-square&label=travis)](http://travis-ci.org/vweevers/level-vinyl) [![AppVeyor build status](https://img.shields.io/appveyor/ci/vweevers/level-vinyl.svg?style=flat-square&label=appveyor)](https://ci.appveyor.com/project/vweevers/level-vinyl) [![Dependency status](https://img.shields.io/david/vweevers/level-vinyl.svg?style=flat-square)](https://david-dm.org/vweevers/level-vinyl)
 
 Jump to: [example](#example) / [api](#api) / [progress](#progress) / [install](#install) / [license](#license)
 
@@ -13,13 +12,16 @@ Jump to: [example](#example) / [api](#api) / [progress](#progress) / [install](#
 Because level-vinyl is a vinyl adapter, you can:
 
 - use 1000+ gulp plugins to transform files
-- use `src('src/*.png')` and `dest('assets')` like a pro.
+- aggregate files using multiple globs and negation
+- do `gulp.src('src/*.png').pipe(db.dest('assets'))` like a pro: `src/1.png` ends up
+  in your database at `assets/1.png`
 - stream only modified files with `opts.since`
+- save on memory because `file.contents` is a stream
 
-Because level-vinyl saves metadata to leveldb (by unixified relative path), you can:
+Because level-vinyl saves metadata (stat, digest and custom properties) to leveldb by unixified relative path, you can:
 
 - pipe to and from other databases, local and elsewhere (theoretically).
-- index file properties, do map-reduces
+- index metadata, do map-reduces
 - use sublevels to for example, save multiple versions of the same files
 - use triggers and hooks to process new files
 

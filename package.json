@@ -27,7 +27,7 @@
     "minimatch": "~2.0.1",
     "ordered-read-streams": "~0.1.0",
     "through2": "~0.6.3",
-    "unique-stream": "~1.0.0",
+    "unique-stream": "~2.0.2",
     "unixify": "^0.1.0",
     "vinyl": "~0.4.6",
     "xtend": "~4.0.0"
