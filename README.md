@@ -85,13 +85,14 @@ In terms of compatibility with gulp / vinyl-fs.
 - [x] return dead stream if globs is empty array
 - [x] throw on invalid glob (not a string or array)
 - [x] Support `opts.since`
+- [ ] set glob opts (`nobrace` etc.)
 
 ### `dest(path, opts)`
 
 **Differences:**
 
-- Files are saved in leveldb with a relative path, so the behavior of `dest`
-  is gonna be different from vinyl-fs. Under consideration.
+- Files are saved in leveldb by their `relative` property, optionally prefixed
+with `path`. Note that `dest('/docs')` does the same as `dest('docs')`.
 - Saves a small subset of `file.stat`: mtime, ctime, mode and size. Mode is 777
   or `opts.mode`; only permission flags are saved.
 - Doesn't have a notion of directories
@@ -99,14 +100,15 @@ In terms of compatibility with gulp / vinyl-fs.
 **Features:**
 
 - [ ] resets streams
-- [ ] updates files after write (cwd, base, path, mode)
+- [x] updates files after write (cwd, base, path, mode)
 - [x] opts.mode
 - [x] doesn't write null files
 - [x] writes buffers
 - [x] writes streams
-- [ ] should allow piping multiple dests
-- [ ] throw on invalid (empty) folder
-- [ ] support `path` as function
+- [ ] should allow piping multiple dests (needs test)
+- [x] <strike>throw on invalid (empty) folder</strike>
+- [x] support `path` as function (gets a vinyl file, should return a path)
+- [x] support `opts.cwd` (irrelevant for save, but does set `file.cwd`)
 
 ## install
 

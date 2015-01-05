@@ -5,28 +5,11 @@ var test = require('tape')
   , fromFile = require('vinyl-file')
   , path = require('path')
   , eos = require('end-of-stream')
+  , unixify = require('unixify')
 
 test.skip('dest resets streams', function(t){
   // TODO
   // "contents will have it's position reset to the beginning if it is a stream"
-})
-
-test.skip('dest updates vinyl files', function(t){
-  // TODO: "The file will be modified after being written to this stream:
-  // cwd, base, and path will be overwritten to match the folder
-  // stat.mode will be overwritten if you used a mode parameter"
-})
-
-test.skip('dest folder', function(t){
-  // TODO: we differ from vinyl-fs here, describe wanted behaviour.
-
-  // vinyl-fs does this:
-  // "The write path is calculated by appending the file relative path
-  // to the given destination directory. In turn, relative paths are
-  // calculated against the file base."
-
-  // also: "options.cwd for the output folder, only has an effect if
-  // provided output folder is relative."
 })
 
 test.skip('no conflicts between sublevel blobs', function(t){
@@ -38,13 +21,45 @@ test.skip('should allow piping multiple dests in streaming mode', function(t){
   // re-emits data
 })
 
-test.skip('should explode on invalid folder (empty)', function(t){
-  // TODO
+test('dest path', function(t){
+  var vinylDb = create()
+
+  t.plan(6)
+
+  var file1 = createFile('bar', 'text')
+  t.equal(unixify(file1.relative), 'test/bar')
+
+  vinylDb.dest('/foo').on('data', function(modified){
+    t.equal(unixify(modified.relative), 'foo/test/bar')
+  }).end(file1)
+
+  var file2 = createFile('boo/word', 'bam')
+  t.equal(unixify(file2.relative), 'test/boo/word')
+
+  vinylDb.dest('foo').on('data', function(modified){
+    t.equal(unixify(modified.relative), 'foo/test/boo/word')
+  }).end(file2)
+
+  var file3 = createFile('baz', 'hellooo')
+  t.equal(unixify(file3.relative), 'test/baz')
+
+  vinylDb.dest().on('data', function(modified){
+    t.equal(unixify(modified.relative), 'test/baz')
+  }).end(file3)
 })
 
-test.skip('path function', function(t) {
-  // TODO
-  // "a function that returns a path. the function will be provided a vinyl File instance."
+test('path function', function(t) {
+  var vinylDb = create()
+    , file = createFile('a', 'ok')
+
+  t.plan(2)
+  t.equal(unixify(file.relative), 'test/a')
+
+  function p(vinyl) { return 'custom' }
+
+  vinylDb.dest(p).on('data', function(modified){
+    t.equal(unixify(modified.relative), 'custom/test/a')
+  }).end(file)
 })
 
 test('opts.mode', function(t){

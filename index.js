@@ -152,10 +152,32 @@ function levelVinyl(db, opts) {
     del.call(db, key, cb)
   }
 
-  db.dest = function(path, opts) {
+  db.dest = function(prefix, opts) {
+    opts || (opts = {})
+
+    if (typeof prefix === 'function') {
+      prefix = function(fn, vinyl) {
+        return normalizePrefix(fn(vinyl))
+      }.bind(null, prefix)
+    } else {
+      prefix = normalizePrefix(prefix)
+    }
+
+    var cwd = opts.cwd || process.cwd()
+
+    // "The write path is calculated by appending the file relative path
+    // to the given destination directory."
+
     var stream = through2.obj(function(vinyl, _, next){
+      var relative = vinyl.relative
+      var vprefix = typeof prefix === 'function' ? prefix(vinyl) : prefix
+
+      vinyl.base = vinyl.cwd = cwd
+      vinyl.path = path.resolve(cwd, vprefix, relative)
+
       db.put(vinyl, opts, next)
     })
+
     stream.resume()
     return stream
   }
@@ -345,4 +367,13 @@ function indexGreaterThan(index) {
   return function(obj) {
     return obj.index > index;
   };
+}
+
+function normalizePrefix(prefix) {
+  if (!prefix) return '.'
+
+  prefix = unixify(prefix)
+  if (prefix[0]==='/') prefix = prefix.slice(1)
+
+  return prefix
 }
