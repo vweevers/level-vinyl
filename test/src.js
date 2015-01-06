@@ -51,11 +51,10 @@ test('src with glob', function(t){
     , file1 = createFile('file1', 'foo')
     , file2 = createFile('file2', 'bar')
 
-  t.plan(6)
+  t.plan(12)
 
   function map(expectedPaths, msg) {
     return concat(function(files) {
-      // t.equal(files.length, expectedLength)
       var paths = files.map(function(file){ return file.relative })
       t.deepEqual(paths, expectedPaths, msg)
     })
@@ -64,16 +63,23 @@ test('src with glob', function(t){
   var dest = vinylDb.dest()
 
   dest.on('end', function(err){
-    vinylDb.src('**').pipe(map([file1.relative]))
-    vinylDb.src('test/*').pipe(map(['file1']))
+    vinylDb.src('**').pipe(map([file1.relative, file2.relative]))
+    vinylDb.src('test/*').pipe(map(['file1', 'file2']))
     vinylDb.src('test/file1').pipe(map([file1.relative], 'single file'))
     vinylDb.src('test\\file1').pipe(map([file1.relative], 'unixifies'))
-    vinylDb.src('**/*').pipe(map([file1.relative]))
+    vinylDb.src('**/*').pipe(map([file1.relative, file2.relative]))
     vinylDb.src('no**').pipe(map([]))
+
+    vinylDb.src('/**').pipe(map([file1.relative, file2.relative]))
+    vinylDb.src('/test/*').pipe(map(['file1', 'file2']))
+    vinylDb.src('/test/file1').pipe(map([file1.relative], 'single file'))
+    vinylDb.src('C:\\test\\file1').pipe(map([file1.relative], 'unixifies'))
+    vinylDb.src('/**/*').pipe(map([file1.relative, file2.relative]))
+    vinylDb.src('/no**').pipe(map([]))
   })
 
   dest.write(file1)
-  dest.end()
+  dest.end(file2)
 })
 
 test('glob negation', function(t){
