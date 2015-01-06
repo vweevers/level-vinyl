@@ -71,17 +71,19 @@ function levelVinyl(db, opts) {
       var glob = positive.glob, i = positive.index
 
       if (isGlob(glob)) {
-        db.index(glob, indexGlob);
+        var base = getBase(glob)
 
-        var stream = db.streamBy(glob)
+        // stream range starting with glob base
+        var stream = db.createValueStream({ gt: base, lt: base+'\xff' })
+            .pipe(filterGlobs([glob]))
 
         // set file.base to glob base
-        if (!opts.base) stream = stream.pipe(setBase(glob))
+        if (!opts.base && base) stream = stream.pipe(setBase(base))
       } else {
         // get by path
         if (glob[glob.length-1]!=='/') {
           // assume a single file is wanted
-          var range = { gte: glob, limit: 1, lt: glob+'*'}
+          var range = { gte: glob, lte: glob+'*'}
         } else {
           // effectively a directory glob
           range = { gt: glob, lt: glob+'\xff' }
@@ -394,28 +396,32 @@ function decodeStat(plain) {
   return stat
 }
 
-function setBase(glob) {
-  var mm = new Minimatch(glob)
-  var base = glob2base({minimatch: mm})
-
+function setBase(base) {
   return through2.obj(function(file, _, next){
     file.base = base
     next(null, file)
   })
 }
 
-function filterNegatives(globs) {
+function getBase(glob) {
+  var mm = new Minimatch(glob)
+  var base = unixify(glob2base({minimatch: mm}))
+  return base==='./' ? '' : base
+}
+
+function filterGlobs(globs) {
   if (!globs.length) return through2.obj()
 
-  globs.unshift('**') // or micromatch won't match
   return through2.obj(function(file, _, next){
     if (micromatch(file.relative, globs).length) this.push(file)
     next()
   })
 }
 
-function indexGlob(path, file, globs){
-  return micromatch(path, globs).length ? [] : null
+function filterNegatives(globs) {
+  if (!globs.length) return through2.obj()
+  globs.unshift('**') // or micromatch won't match
+  return filterGlobs(globs)
 }
 
 // taken from `glob-stream`
