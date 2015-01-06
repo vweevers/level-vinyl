@@ -1,7 +1,7 @@
 # level-vinyl
 
 > leveldb vinyl adapter and blob store. Saves file contents in a content
-addressable blob store, file metadata in leveldb. Supports globbing, most of the gulp 4.0 options and emits streaming vinyl files.
+addressable blob store, file metadata in leveldb. Supports globbing, most of the gulp 4.0 options and emits streaming [vinyl](https://github.com/wearefractal/vinyl) files.
 
 [![npm status](http://img.shields.io/npm/v/level-vinyl.svg?style=flat-square)](https://www.npmjs.org/package/level-vinyl) [![Travis build status](https://img.shields.io/travis/vweevers/level-vinyl.svg?style=flat-square&label=travis)](http://travis-ci.org/vweevers/level-vinyl) [![AppVeyor build status](https://img.shields.io/appveyor/ci/vweevers/level-vinyl.svg?style=flat-square&label=appveyor)](https://ci.appveyor.com/project/vweevers/level-vinyl) [![Dependency status](https://img.shields.io/david/vweevers/level-vinyl.svg?style=flat-square)](https://david-dm.org/vweevers/level-vinyl)
 
@@ -69,7 +69,7 @@ Note though, it's a levelup database:
 
 ```js
 vinylDb.get('/example.jpg', function(err, file){
-  file.contents.pipe(process.stdout)
+  file.contents.pipe(somewhere)
 })
 
 vinylDb.get('/example.jpg', { read: false }, function(err, file){
