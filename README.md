@@ -17,7 +17,7 @@ Because level-vinyl is a vinyl adapter, you can:
 - aggregate files using multiple globs and negation
 - do `gulp.src('src/*.png').pipe(db.dest('/assets'))` like a pro: `src/1.png` ends up
   in your database at `/assets/1.png`
-- stream only modified files with `opts.since`
+- stream only modified files with `options.since`
 
 Because level-vinyl saves metadata (stat, digest and custom properties) to leveldb by a virtual path, you can:
 
@@ -83,65 +83,62 @@ vinylDb.get('/example.jpg', { read: false }, function(err, file){
 
 In terms of compatibility with gulp / vinyl-fs.
 
-### `src(globs[, opts])`
+### `src(pattern(s)[, options])`
 
-**Differences:**
+**Differences**
 
-- `file.contents` is a stream, `opts.buffer` is not supported (use `vinyl-buffer` to convert streams to buffers)
+- `file.contents` is a stream; `options.buffer` is not supported. You can use [vinyl-buffer](https://www.npmjs.com/package/vinyl-buffer) to convert streams to buffers (as the above example does).
 - Only streams regular files (`file.stat.isFile()` is always true).
 
-**Features:**
+**Features**
 
-- [x] multiple globs, negation
+- [x] aggregate multiple glob patterns, negation
 - [ ] consistent order (needs test)
-- [x] Base: `file.base` is set to "glob base" or `opts.base`
-- [x] No read: `file.isNull()` when `opts.read == false`
+- [x] Base: `file.base` is set to the "glob base" or `options.base`
+- [x] No read: `file.isNull()` when `options.read == false`
 - [ ] should pass through writes (needs test)
 - [x] should glob a directory
 - [x] return dead stream if globs is empty array
 - [x] throw on invalid glob (not a string or array)
-- [x] Support `opts.since`
-- [ ] set glob opts (`nobrace` etc.)
+- [x] Support `options.since`
+- [ ] set glob options (`nobrace` etc.)
 
-### `dest([path][, opts])`
+### `dest([path][, options])`
 
-**Differences:**
+**Differences**
 
-- Files are saved in leveldb by their `relative` property, optionally prefixed
-with `path`. Note that `dest('/docs')` does the same as `dest('docs')`. **Update:
-  now saves to an absolute path** (because otherwise, it's impossible to uniquely
-  identify files)
+- The `path` argument is optional and defaults to `/`. Files are identified in leveldb by an absolute
+virtual path, which is constructed from a file's `relative` property, optionally prefixed
+with `path`. Note that `dest('/docs')` currently does the same as `dest('docs')`,
+because there is no concept of a "current working directory" within the tree.
 - Saves a small subset of `file.stat`: mtime, ctime, mode and size. Mode is 777
-  or `opts.mode`; only permission flags are saved.
-- Doesn't have a notion of directories
+  or `options.mode`; only permission flags are saved.
 
-**Features:**
+**Features**
 
 - [ ] resets streams
 - [x] updates files after write (cwd, base, path, mode)
-- [x] opts.mode
+- [x] options.mode
 - [x] doesn't write null files
 - [x] writes buffers
 - [x] writes streams
 - [ ] should allow piping multiple dests (needs test)
 - [x] <strike>throw on invalid (empty) folder</strike>
 - [x] support `path` as function (gets a vinyl file, should return a path)
-- [ ] support `opts.cwd` (irrelevant for save, but does set `file.cwd`) (needs test)
+- [ ] support `options.cwd` (irrelevant for save, but does set `file.cwd`) (needs test)
 
-### `watch([pattern(s)][, opts][, cb])`
+### `watch([pattern(s)][, options][, cb])`
 
-Not yet implemented.
-
-**Differences:**
+**Differences**
 
 - no `ready` event or callback argument for `add()`, because initialization is synchronous
 - does not support the change types "renamed" and "added"
 
-**Features:**
+**Features**
 
 - [x] add `cb` as change listener
-- [x] `opts.debounceDelay`: debounce events for the same file/event, default delay is 500
-- [x] `opts.maxListeners`
+- [x] `options.debounceDelay`: debounce events for the same file/event, default delay is 500
+- [x] `options.maxListeners`
 - [ ] keeps process alive
 - [x] does nothing if `patterns` is empty
 
@@ -149,9 +146,17 @@ Returns an EventEmitter with these features:
 
 - [x] emits `change` with `{type, path}` data where type is "changed" or "deleted".
 - [x] `.end()`: unwatch and emit "end"
-- [x] `.add(patterns)`: add patterns to be watched
-- [x] `.remove(path)`: "removes a file or directory from being watched. Does not recurse directories"
+- [x] `.add(pattern(s))`: add patterns to be watched
+- [x] `.remove(pattern(s))`: remove <strike>a file or directory</strike> patterns from being watched.
 - [x] emits `nomatch`
+
+Note that `remove` simply adds a negative glob, meaning these two lines do the
+same thing:
+
+```js
+watcher.remove('**/b')
+watcher.add('!**/b')
+```
 
 ## install
 
