@@ -1,11 +1,11 @@
 # level-vinyl
 
 > leveldb vinyl adapter and blob store. Saves file contents in a content
-addressable blob store, file metadata in leveldb. Supports globbing, most of the gulp 4.0 options and emits streaming [vinyl](https://github.com/wearefractal/vinyl) files.
+addressable blob store, file metadata in leveldb. Supports globbing, most of the gulp 4.0 options and emits streaming [vinyl](https://www.npmjs.com/package/vinyl) files.
 
 [![npm status](http://img.shields.io/npm/v/level-vinyl.svg?style=flat-square)](https://www.npmjs.org/package/level-vinyl) [![Travis build status](https://img.shields.io/travis/vweevers/level-vinyl.svg?style=flat-square&label=travis)](http://travis-ci.org/vweevers/level-vinyl) [![AppVeyor build status](https://img.shields.io/appveyor/ci/vweevers/level-vinyl.svg?style=flat-square&label=appveyor)](https://ci.appveyor.com/project/vweevers/level-vinyl) [![Dependency status](https://img.shields.io/david/vweevers/level-vinyl.svg?style=flat-square)](https://david-dm.org/vweevers/level-vinyl)
 
-Jump to: [example](#example) / [api](#api) / [progress](#progress) / [install](#install) / [license](#license)
+Jump to: [example](#example) / [usage](#usage) / [vinyl adapter api](#vinyl-adapter-api) / [levelup api](#levelup-api) / [install](#install) / [license](#license)
 
 ## why?
 
@@ -77,13 +77,20 @@ vinylDb.get('/example.jpg', { read: false }, function(err, file){
 })
 ```
 
-## api
+## usage
 
-## progress
+`levelVinyl(db, options || path)`
 
-In terms of compatibility with gulp / vinyl-fs.
+- `db` a levelup database that has [sublevel](https://www.npmjs.com/package/level-sublevel) 6.x.x installed
+- `options.path || path` where to store the blobs (required)
 
-### `src(pattern(s)[, options])`
+If you provide an options object, it will be passed to [content-addressable-blob-store](https://www.npmjs.com/package/content-addressable-blob-store).
+
+## vinyl adapter api
+
+The items below are described in terms of compatibility with [vinyl-fs](https://www.npmjs.com/package/vinyl-fs).
+
+### `db.src(pattern(s)[, options])`
 
 **Differences**
 
@@ -106,7 +113,7 @@ In terms of compatibility with gulp / vinyl-fs.
 - should pass through writes (*needs test*)
 - set glob options (`nobrace` etc).
 
-### `dest([path][, options])`
+### `db.dest([path][, options])`
 
 **Differences**
 
@@ -129,7 +136,7 @@ because there is no concept of a "current working directory" within the tree.
 - should allow piping multiple dests and should reset streams (*needs specific test*)
 - support `options.cwd` (*irrelevant for save, but does set `file.cwd`*)
 
-### `watch([pattern(s)][, options][, cb])`
+### `db.watch([pattern(s)][, options][, cb])`
 
 **Differences**
 
@@ -156,6 +163,61 @@ And these methods:
 - `add(pattern(s))`: add patterns to be watched
 - `remove(pattern(s))`: exclude files from being matched
 - `end()`: stop watching.
+
+## levelup api
+
+### `db.get(path[, options], cb)`
+
+Get a single file. `path` will be made absolute and unixified.
+
+```js
+db.get('/images/moon.png', cb) // i like this
+db.get('images\\moon.png', cb) // but this is fine too
+```
+
+- `options.read` if false, the blob store isn't accessed and `file.contents` will be `null`
+- `options.valueEncoding || options.encoding` if set, the retrieved value won't be coerced to Vinyl
+
+### `db.subvinyl(prefix[, options])`
+
+Create a sublevel and install level-vinyl - the sublevel will have its own blob store. Prefix and options are passed to sublevel.
+
+### `db.put(key, vinyl[, options][, cb])`
+### `db.put(vinyl[, options][, cb])`
+
+Save a single file.
+
+- `options.mode` set `file.stat.mode` before saving, default is 777
+- `options.base` set the file's `base`
+- `options.valueEncoding || options.encoding` if set, the regular `put()` is called.
+
+### `db.del(key[, cb])`
+
+Nothing special, except this again:
+
+```js
+db.del('/document') == db.del('\\document')
+```
+
+### `db.batch(ops[, options], cb)`
+
+For `put` operations:
+
+- `options.mode` set `file.stat.mode` on all files
+- `op.mode` same, but per operation (overrides `options.mode`):
+
+```js
+db.batch([{
+  type: 'put',
+  key: '/project/readme',
+  value: readmeFile,
+  mode: 0755
+}])
+```
+
+### `db.getBlobStore()`
+
+Get the blob store instance.
 
 ## install
 

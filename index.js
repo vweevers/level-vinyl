@@ -100,7 +100,8 @@ function levelVinyl(db, opts) {
     return ordered(streams).pipe(unique('path')).pipe(toVinyl(opts))
   }
 
-  db.vinylBlobs = function() { return blobs }
+  db.getBlobStore = // TODO: rm vinylBlobs()
+    db.vinylBlobs = function() { return blobs }
 
   db.get = function(path, opts, cb) {
     if (typeof opts == 'function') cb = opts, opts = {}
