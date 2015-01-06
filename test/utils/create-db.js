@@ -5,7 +5,8 @@ var level = require('level-test')({ valueEncoding: 'json' })
   , tmpdir = require('osenv').tmpdir()
 
 module.exports = function() {
-  var blobs = path.join(tmpdir, 'level-vinyl', String(Date.now()));
-  var sdb = sub(level(), { valueEncoding: 'json'});
+  var prefix = 'level-vinyl-tests/' + Date.now()
+  var blobs = path.join(tmpdir, prefix, 'blobs');
+  var sdb = sub(level(prefix+'/db'), { valueEncoding: 'json'});
   return levelVinyl(sdb, blobs)
 }
