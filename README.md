@@ -92,16 +92,19 @@ In terms of compatibility with gulp / vinyl-fs.
 
 **Features**
 
-- [x] aggregate multiple glob patterns, negation
-- [ ] consistent order (needs test)
-- [x] Base: `file.base` is set to the "glob base" or `options.base`
-- [x] No read: `file.isNull()` when `options.read == false`
-- [ ] should pass through writes (needs test)
-- [x] should glob a directory
-- [x] return dead stream if globs is empty array
-- [x] throw on invalid glob (not a string or array)
-- [x] Support `options.since`
-- [ ] set glob options (`nobrace` etc.)
+- aggregate multiple glob patterns, negation
+- results are ordered
+- `file.base` is set to the "glob base" or `options.base`
+- `file.isNull()` when `options.read == false`
+- should glob a directory
+- return dead stream if globs is empty array
+- throw on invalid glob (not a string or array)
+- support `options.since`
+
+**Missing  / partial support**
+
+- should pass through writes (*needs test*)
+- set glob options (`nobrace` etc).
 
 ### `dest([path][, options])`
 
@@ -116,47 +119,43 @@ because there is no concept of a "current working directory" within the tree.
 
 **Features**
 
-- [ ] resets streams
-- [x] updates files after write (cwd, base, path, mode)
-- [x] options.mode
-- [x] doesn't write null files
-- [x] writes buffers
-- [x] writes streams
-- [ ] should allow piping multiple dests (needs test)
-- [x] <strike>throw on invalid (empty) folder</strike>
-- [x] support `path` as function (gets a vinyl file, should return a path)
-- [ ] support `options.cwd` (irrelevant for save, but does set `file.cwd`) (needs test)
+- updates files after write (`cwd`, `base`, `path` and `stat`)
+- custom mode with `options.mode` (this is just metadata and has no effect on the blob store)
+- writes buffers and streams, skips null files
+- supports `path` as function (gets a vinyl file, should return a path).
+
+**Missing  / partial support**
+
+- should allow piping multiple dests and should reset streams (*needs specific test*)
+- support `options.cwd` (*irrelevant for save, but does set `file.cwd`*)
 
 ### `watch([pattern(s)][, options][, cb])`
 
 **Differences**
 
-- no `ready` event or callback argument for `add()`, because initialization is synchronous
-- does not support the change types "renamed" and "added"
+- does not emit a `ready` event and `add()` has no callback argument
+- the change types `renamed` and `added` are not supported
+- does not keep the process alive
+- both `add()` and `remove()` accept glob patterns.
 
 **Features**
 
-- [x] add `cb` as change listener
-- [x] `options.debounceDelay`: debounce events for the same file/event, default delay is 500
-- [x] `options.maxListeners`
-- [ ] keeps process alive
-- [x] does nothing if `patterns` is empty
+- adds `cb` as change listener
+- `options.debounceDelay`: debounce events for the same file, default delay is 500
+- `options.maxListeners` is passed to [emitter.setMaxListeners](http://nodejs.org/api/events.html#events_emitter_setmaxlisteners_n)
+- does nothing if `patterns` is empty.
 
-Returns an EventEmitter with these features:
+Returns an emitter with these events:
 
-- [x] emits `change` with `{type, path}` data where type is "changed" or "deleted".
-- [x] `.end()`: unwatch and emit "end"
-- [x] `.add(pattern(s))`: add patterns to be watched
-- [x] `.remove(pattern(s))`: remove <strike>a file or directory</strike> patterns from being watched.
-- [x] emits `nomatch`
+- `change` with `{type, path}` data where type is `changed` or `deleted`.
+- `nomatch`, when a changed or deleted file doesn't match the patterns
+- `end` when stopped.
 
-Note that `remove` simply adds a negative glob, meaning these two lines do the
-same thing:
+And these methods:
 
-```js
-watcher.remove('**/b')
-watcher.add('!**/b')
-```
+- `add(pattern(s))`: add patterns to be watched
+- `remove(pattern(s))`: exclude files from being matched
+- `end()`: stop watching.
 
 ## install
 
