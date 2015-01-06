@@ -1,6 +1,6 @@
 {
   "name": "level-vinyl",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "leveldb vinyl adapter and blob store",
   "main": "index.js",
   "scripts": {
