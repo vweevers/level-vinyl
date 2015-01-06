@@ -20,7 +20,7 @@ test('put and get', function(t){
     t.notOk(err)
 
     // saved as unix path..
-    vinylDb.get('test/testfile', function(err, same){
+    vinylDb.get('/test/testfile', function(err, same){
       t.notOk(err)
 
       // .. but normalized locally
@@ -41,7 +41,7 @@ test('sublevel', function(t){
     , file = createFile('testfile', 'subsub')
 
   sub.put(file, function(){
-    sub.get('test/testfile', function(err, file){
+    sub.get('/test/testfile', function(err, file){
       t.ok(file)
       t.end()
     })

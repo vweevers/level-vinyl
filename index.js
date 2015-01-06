@@ -29,16 +29,11 @@ function levelVinyl(db, opts) {
   // don't coerce to vinyl while indexing
   index(db, {get: { valueEncoding: 'json' }});
 
-  // TODO: auto-remove old indices (but when?)
-  // TODO: what if it's an absolute path?
   db.src = function(globs, opts) {
     if (typeof globs == 'string') globs = [globs]
     else if (!Array.isArray(globs)) throw new Error('Invalid glob')
 
-    globs = globs.map(function(glob){
-      if (!glob || typeof glob != 'string') throw new Error('Invalid glob')
-      return unixify(glob, true)
-    })
+    globs = globs.map(normalizeGlob)
 
     opts = xtend({ read: true }, opts || {})
 
@@ -59,7 +54,7 @@ function levelVinyl(db, opts) {
 
     var numPositive = positives.length
 
-    if (!numPositive || (numPositive==1 && positives[0]=='**')) {
+    if (!numPositive || (numPositive==1 && positives[0]=='/**')) {
       return db.createValueStream()
         .pipe(filterNegatives(negatives.map(toGlob)))
         .pipe(toVinyl(opts))
@@ -74,11 +69,11 @@ function levelVinyl(db, opts) {
         var base = getBase(glob)
 
         // stream range starting with glob base
-        var stream = db.createValueStream({ gt: base, lt: base+'\xff' })
+        var stream = db.createValueStream({ gte: base, lt: base+'\xff' })
             .pipe(filterGlobs([glob]))
 
         // set file.base to glob base
-        if (!opts.base && base) stream = stream.pipe(setBase(base))
+        if (!opts.base) stream = stream.pipe(setBase(base))
       } else {
         // get by path
         if (glob[glob.length-1]!=='/') {
@@ -102,7 +97,7 @@ function levelVinyl(db, opts) {
     })
 
     // aggregate into stream of unique items
-    return ordered(streams).pipe(unique('relative')).pipe(toVinyl(opts))
+    return ordered(streams).pipe(unique('path')).pipe(toVinyl(opts))
   }
 
   db.vinylBlobs = function() { return blobs }
@@ -114,7 +109,7 @@ function levelVinyl(db, opts) {
     if (opts.valueEncoding || opts.encoding)
       return get.call(db, path, opts, cb) //as-is
 
-    get.call(db, unixify(path, true), function(err, file){
+    get.call(db, absolute(path), function(err, file){
       if (err) return cb(err)
       cb(null, decode(file, opts.read))
     })
@@ -129,7 +124,7 @@ function levelVinyl(db, opts) {
   // key, value, [opts], cb
   // vinyl, [opts], cb
   db.put = function(key, vinyl, opts, cb) {
-    if (typeof key != 'string') cb = opts, opts = vinyl, vinyl = key, key = vinyl.relative
+    if (typeof key != 'string') cb = opts, opts = vinyl, vinyl = key, key = vinyl.path
     if (typeof opts == 'function') cb = opts, opts = {}
     if (!opts) opts = {}
 
@@ -141,6 +136,7 @@ function levelVinyl(db, opts) {
 
     save(vinyl, opts, function(err, value, key){
       if (err || value==null) return cb(err, vinyl)
+
       put.call(db, key, value, opts, function(err){
         cb(err, vinyl)
       })
@@ -149,7 +145,8 @@ function levelVinyl(db, opts) {
 
   // note that blobs are auto-deleted in a post hook (see below)
   var del = db.del; db.del = function(key, cb) {
-    key = unixify(key.relative || key, true)
+    // todo: remove this. consumer must be explicit
+    key = absolute(key.relative || key)
     del.call(db, key, cb)
   }
 
@@ -158,13 +155,13 @@ function levelVinyl(db, opts) {
 
     if (typeof prefix === 'function') {
       prefix = function(fn, vinyl) {
-        return normalizePrefix(fn(vinyl))
+        return absolute(fn(vinyl))
       }.bind(null, prefix)
     } else {
-      prefix = normalizePrefix(prefix)
+      prefix = absolute(prefix)
     }
 
-    var cwd = opts.cwd || process.cwd()
+    var cwd = opts.cwd || '/'
 
     // "The write path is calculated by appending the file relative path
     // to the given destination directory."
@@ -174,7 +171,7 @@ function levelVinyl(db, opts) {
       var vprefix = typeof prefix === 'function' ? prefix(vinyl) : prefix
 
       vinyl.base = vinyl.cwd = cwd
-      vinyl.path = path.resolve(cwd, vprefix, relative)
+      vinyl.path = path.join(cwd, vprefix, relative)
 
       db.put(vinyl, opts, next)
     })
@@ -220,14 +217,17 @@ function levelVinyl(db, opts) {
 
     emitter.patterns = []
 
-    emitter.add = function(patterns, cb) {
-      this.patterns = this.patterns.concat(patterns)
+    emitter.add = function(patterns) {
+      if (typeof patterns == 'string') patterns = [patterns]
+      patterns.forEach(function(ptn){
+        this.push(absolute(ptn))
+      }, this.patterns)
     }
 
     emitter.remove = function(patterns) {
       if (typeof patterns == 'string') var negative = '!' + patterns
       else negative = patterns.map(function(p){ return '!'+p })
-      this.patterns = this.patterns.concat(negative)
+      this.add(negative)
     }
 
     emitter.end = function() {
@@ -295,7 +295,7 @@ function levelVinyl(db, opts) {
       if (since && since >= file.stat.mtime)
         return next()
 
-      if (opts.base) file.base = opts.base
+      if (opts.base) file.base = opts.base // TODO: move upstream or to decode
       next(null, decode(file, opts.read))
     })
   }
@@ -325,17 +325,20 @@ function levelVinyl(db, opts) {
       stat.mode = (opts.mode || 0777) | constants.S_IFREG
 
       var value = encode(vinyl)
-      var key = value.relative
+      var key = value.path
 
       cb(null, value, key)
     })
   }
 
   function decode(file, read) {
-    var cwd = file.cwd = process.cwd()
+    var cwd = file.cwd = path.normalize('/')//process.cwd()
 
-    file.base = path.resolve(cwd, file.base || '.')
-    file.path = path.join(cwd, path.normalize(file.relative))
+    // file.base = path.resolve(cwd, file.base || '.')
+    // file.path = path.join(cwd, path.normalize(file.relative))
+
+    file.base = path.normalize(file.base || '/')
+    file.path = path.normalize(file.path)
     file.stat = decodeStat(file.stat)
 
     var vinyl = new Vinyl(file)
@@ -352,6 +355,25 @@ function levelVinyl(db, opts) {
   }
 }
 
+function absolute(path) {
+  if (!path) return '/'
+
+  var neg = path[0]==='!'
+  if (neg) path = path.slice(1)
+
+  path = unixify(path, true) // true == always, regardless of OS
+
+  if (path[0]==='.') path = path.slice(1)
+  if (path[0]!=='/') path = '/' + path
+
+  return neg ? '!' + path : path
+}
+
+function normalizeGlob(glob){
+  if (!glob || typeof glob !== 'string') throw new Error('Invalid glob')
+  return absolute(glob)
+}
+
 function customProperties(file) {
   var stdProps =
     [ 'history', 'contents', 'cwd'
@@ -364,7 +386,7 @@ function customProperties(file) {
 
 function encode(vinyl) {
   var plain = {
-    relative: unixify(vinyl.relative, true),
+    path: absolute(vinyl.relative),
     stat: encodeStat(vinyl.stat)
   }
 
@@ -397,6 +419,10 @@ function decodeStat(plain) {
 }
 
 function setBase(base) {
+  // TODO: fix upstream
+  if (base.length>1 && base[base.length-1]=='/')
+    base = base.slice(0,-1)
+
   return through2.obj(function(file, _, next){
     file.base = base
     next(null, file)
@@ -405,22 +431,21 @@ function setBase(base) {
 
 function getBase(glob) {
   var mm = new Minimatch(glob)
-  var base = unixify(glob2base({minimatch: mm}))
-  return base==='./' ? '' : base
+  return absolute(glob2base({minimatch: mm}))
 }
 
 function filterGlobs(globs) {
   if (!globs.length) return through2.obj()
 
   return through2.obj(function(file, _, next){
-    if (micromatch(file.relative, globs).length) this.push(file)
+    if (micromatch(file.path, globs).length) this.push(file)
     next()
   })
 }
 
 function filterNegatives(globs) {
   if (!globs.length) return through2.obj()
-  globs.unshift('**') // or micromatch won't match
+  globs.unshift('/**') // or micromatch won't match
   return filterGlobs(globs)
 }
 
@@ -434,13 +459,4 @@ function indexGreaterThan(index) {
   return function(obj) {
     return obj.index > index;
   };
-}
-
-function normalizePrefix(prefix) {
-  if (!prefix) return '.'
-
-  prefix = unixify(prefix)
-  if (prefix[0]==='/') prefix = prefix.slice(1)
-
-  return prefix
 }

@@ -48,31 +48,32 @@ test.skip('glob options', function(t){
 
 test('src with glob', function(t){
   var vinylDb = create()
-    , file = createFile('testfile', 'foo')
+    , file1 = createFile('file1', 'foo')
+    , file2 = createFile('file2', 'bar')
 
-  t.plan(5)
+  t.plan(6)
 
-  vinylDb.put(file, function(err){
-    vinylDb.src('test**').pipe(concat(function(files){
-      t.equal(files[0] && files[0].relative, file.relative)
-    }))
+  function map(expectedPaths, msg) {
+    return concat(function(files) {
+      // t.equal(files.length, expectedLength)
+      var paths = files.map(function(file){ return file.relative })
+      t.deepEqual(paths, expectedPaths, msg)
+    })
+  }
 
-    vinylDb.src('test/testfile').pipe(concat(function(files){
-      t.equal(files[0] && files[0].relative, file.relative)
-    }))
+  var dest = vinylDb.dest()
 
-    vinylDb.src('test\\testfile').pipe(concat(function(files){
-      t.equal(files[0] && files[0].relative, file.relative)
-    }))
-
-    vinylDb.src('**/*').pipe(concat(function(files){
-      t.equal(files[0] && files[0].relative, file.relative)
-    }))
-
-    vinylDb.src('no**').pipe(concat(function(files){
-      t.equal(files.length, 0)
-    }))
+  dest.on('end', function(err){
+    vinylDb.src('**').pipe(map([file1.relative]))
+    vinylDb.src('test/*').pipe(map(['file1']))
+    vinylDb.src('test/file1').pipe(map([file1.relative], 'single file'))
+    vinylDb.src('test\\file1').pipe(map([file1.relative], 'unixifies'))
+    vinylDb.src('**/*').pipe(map([file1.relative]))
+    vinylDb.src('no**').pipe(map([]))
   })
+
+  dest.write(file1)
+  dest.end()
 })
 
 test('glob negation', function(t){
@@ -105,14 +106,14 @@ test('glob a directory', function(t){
     , file3 = createFile('other/test', 'beep')
     , ws = vinylDb.dest()
 
-  t.plan(5)
+  t.plan(4)
 
   eos(ws, function(err){
     vinylDb.src('test/img/').pipe(concat(function(files){
       if (files.length!==2) return t.fail()
       var file1 = files[1], file2 = files[0]
 
-      t.equal(file1.base, file1.cwd)
+      // t.equal(file1.base, file1.cwd)
       t.equal(file1.base, file2.base)
       t.equal(unixify(file1.relative), 'test/img/test.jpg')
       t.equal(unixify(file2.relative), 'test/img/foo/test.png')
@@ -137,12 +138,12 @@ test('src with opts.base', function(t){
   t.plan(4)
 
   eos(ws, function(err){
-    var opts = { base: 'test' }
+    var opts = { base: '/test' } // TODO: test relative base
     vinylDb.src(['test/img/*.jpg', 'test/**/*.md'], opts).pipe(concat(function(files){
       if (files.length!==2) return t.fail()
       var file1 = files[0], file2 = files[1]
 
-      t.equal(file1.base, path.resolve(file1.cwd, 'test'))
+      t.equal(file1.base, path.normalize('/test'), 'base')
       t.equal(file1.base, file2.base)
       t.equal(unixify(file1.relative), 'img/test.jpg')
       t.equal(unixify(file2.relative), 'docs/foo/test.md')
@@ -166,11 +167,11 @@ test('src glob sets base', function(t){
       if (files.length!==2) return t.fail()
       var file1 = files[0], file2 = files[1]
 
-      t.equal(file1.base, path.resolve(file1.cwd, 'test/img'))
-      t.equal(file1.relative, 'test.jpg')
+      t.equal(file1.base, path.normalize('/test/img'), 'base')
+      t.equal(file1.relative, 'test.jpg', 'relative')
 
-      t.equal(file2.base, path.resolve(file2.cwd, 'test'))
-      t.equal(unixify(file2.relative), 'docs/foo/test.md')
+      t.equal(file2.base, path.normalize('/test'), 'base')
+      t.equal(unixify(file2.relative), 'docs/foo/test.md', 'relative')
     }))
   })
 

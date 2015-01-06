@@ -1,7 +1,7 @@
 # level-vinyl
 
 > leveldb vinyl adapter and blob store. Saves file contents in a content
-addressable blob store, file metadata in leveldb. Supports globbing, most of the vinyl-fs / gulp 4.0 options and emits streaming vinyl files.
+addressable blob store, file metadata in leveldb. Supports globbing, most of the gulp 4.0 options and emits streaming vinyl files.
 
 [![npm status](http://img.shields.io/npm/v/level-vinyl.svg?style=flat-square)](https://www.npmjs.org/package/level-vinyl) [![Travis build status](https://img.shields.io/travis/vweevers/level-vinyl.svg?style=flat-square&label=travis)](http://travis-ci.org/vweevers/level-vinyl) [![AppVeyor build status](https://img.shields.io/appveyor/ci/vweevers/level-vinyl.svg?style=flat-square&label=appveyor)](https://ci.appveyor.com/project/vweevers/level-vinyl) [![Dependency status](https://img.shields.io/david/vweevers/level-vinyl.svg?style=flat-square)](https://david-dm.org/vweevers/level-vinyl)
 
@@ -9,23 +9,23 @@ Jump to: [example](#example) / [api](#api) / [progress](#progress) / [install](#
 
 ## why?
 
+**level-vinyl gives you the combined power of vinyl and levelup.**
+
 Because level-vinyl is a vinyl adapter, you can:
 
-- use 1000+ gulp plugins to transform files
+- use [1000+ gulp plugins](http://gulpjs.com/plugins) to transform files
 - aggregate files using multiple globs and negation
-- do `gulp.src('src/*.png').pipe(db.dest('assets'))` like a pro: `src/1.png` ends up
-  in your database at `assets/1.png`
+- do `gulp.src('src/*.png').pipe(db.dest('/assets'))` like a pro: `src/1.png` ends up
+  in your database at `/assets/1.png`
 - stream only modified files with `opts.since`
-- save on memory because `file.contents` is a stream
 
-Because level-vinyl saves metadata (stat, digest and custom properties) to leveldb by unixified relative path, you can:
+Because level-vinyl saves metadata (stat, digest and custom properties) to leveldb by a virtual path, you can:
 
 - pipe to and from other databases, local and elsewhere (theoretically).
 - index metadata, do map-reduces
 - use sublevels to for example, save multiple versions of the same files
 - use triggers and hooks to process new files
-
-**In other words, this is a nice abstraction for a file processing service.**
+- or do [something else](https://github.com/rvagg/node-levelup/wiki/Modules) entirely
 
 ## example
 
@@ -36,30 +36,44 @@ var levelvinyl = require('level-vinyl')
   , buffer     = require('vinyl-buffer')
   , imagemin   = require('imagemin-jpegtran')()
   , vfs        = require('vinyl-fs')
-  , fromFile   = require('vinyl-file')
 
 // Create database
 var db = level();
 var sdb = sublevel(db, { valueEncoding: 'json'});
 var vinylDb = levelvinyl(sdb, './example/blobs')
 
-// Create a virtual file
-var file = fromFile.readSync('example.jpg')
+// Create a sublevel for minified images
+var min  = vinylDb.subvinyl('minified').dest('/')
+var main = vinylDb.dest('/')
 
-// Save it
-vinylDb.put(file, function(){
+vfs.src('*.jpg')     // file.contents is a buffer
+  .pipe(main)        // save to db
+  .pipe(imagemin())  // minify
+  .pipe(min)         // save minified to db
+```
 
-  // Create a sublevel for minified images
-  var min = vinylDb.subvinyl('minified')
+Same thing, other way around:
 
-  // Minify
-  vinylDb.src('*.jpg')
-    .pipe(buffer())
-    .pipe(imagemin())
-    .pipe(min.dest())
+```js
+var min  = vfs.dest('./example/minified')
+var main = vfs.dest('./example')
 
-    // Copy to actual file
-    .pipe(vfs.dest('example/minified'))
+vinylDb.src('*.jpg') // file.contents is a stream
+  .pipe(main)        // copy to fs
+  .pipe(buffer())    // imagemin wants buffers
+  .pipe(imagemin())  // minify
+  .pipe(min)         // copy minified to fs
+```
+
+Note though, it's a levelup database:
+
+```js
+vinylDb.get('/example.jpg', function(err, file){
+  file.contents.pipe(process.stdout)
+})
+
+vinylDb.get('/example.jpg', { read: false }, function(err, file){
+  console.log( file.isNull() === true )
 })
 ```
 
@@ -94,7 +108,9 @@ In terms of compatibility with gulp / vinyl-fs.
 **Differences:**
 
 - Files are saved in leveldb by their `relative` property, optionally prefixed
-with `path`. Note that `dest('/docs')` does the same as `dest('docs')`.
+with `path`. Note that `dest('/docs')` does the same as `dest('docs')`. **Update:
+  now saves to an absolute path** (because otherwise, it's impossible to uniquely
+  identify files)
 - Saves a small subset of `file.stat`: mtime, ctime, mode and size. Mode is 777
   or `opts.mode`; only permission flags are saved.
 - Doesn't have a notion of directories
@@ -110,7 +126,7 @@ with `path`. Note that `dest('/docs')` does the same as `dest('docs')`.
 - [ ] should allow piping multiple dests (needs test)
 - [x] <strike>throw on invalid (empty) folder</strike>
 - [x] support `path` as function (gets a vinyl file, should return a path)
-- [x] support `opts.cwd` (irrelevant for save, but does set `file.cwd`)
+- [ ] support `opts.cwd` (irrelevant for save, but does set `file.cwd`) (needs test)
 
 ### `watch([pattern(s)][, opts][, cb])`
 
@@ -118,7 +134,6 @@ Not yet implemented.
 
 **Differences:**
 
-- emits change events with relative paths
 - no `ready` event or callback argument for `add()`, because initialization is synchronous
 - does not support the change types "renamed" and "added"
 
