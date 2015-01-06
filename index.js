@@ -135,10 +135,10 @@ function levelVinyl(db, opts) {
     // vinyl = vinyl.clone()
 
     save(vinyl, opts, function(err, value, key){
-      if (err || value==null) return cb(err, vinyl)
+      if (err || value==null) return cb && cb(err, vinyl)
 
       put.call(db, key, value, opts, function(err){
-        cb(err, vinyl)
+        cb && cb(err, vinyl)
       })
     })
   }
@@ -190,8 +190,12 @@ function levelVinyl(db, opts) {
     var changes = {}
 
     function debounce(path, change) {
+      if (!opts.debounceDelay)
+        return emitter.emit('change', {type: change, path: path})
+
       var has = changes[path]
       changes[path] = change
+
       if (!has) setTimeout(function(){
         var change = changes[path]
         delete changes[path]
@@ -212,7 +216,7 @@ function levelVinyl(db, opts) {
 
     var emitter = new EventEmitter()
 
-    if (opts.maxListeners)
+    if (typeof opts.maxListeners == 'number')
       emitter.setMaxListeners(opts.maxListeners)
 
     emitter.patterns = []
@@ -222,17 +226,20 @@ function levelVinyl(db, opts) {
       patterns.forEach(function(ptn){
         this.push(absolute(ptn))
       }, this.patterns)
+      return this
     }
 
     emitter.remove = function(patterns) {
       if (typeof patterns == 'string') var negative = '!' + patterns
       else negative = patterns.map(function(p){ return '!'+p })
       this.add(negative)
+      return this
     }
 
     emitter.end = function() {
       removeHook()
       emitter.emit('end')
+      return this
     }
 
     if (patterns) emitter.add(patterns)
