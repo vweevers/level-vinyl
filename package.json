@@ -18,10 +18,12 @@
   "author": "Vincent Weevers (http://vincentweevers.nl)",
   "license": "MIT",
   "dependencies": {
+    "absolute-glob": "~0.1.0",
     "content-addressable-blob-store": "~4.1.1",
     "end-of-stream": "~1.1.0",
     "glob2base": "0.0.12",
     "is-glob": "^0.3.0",
+    "level-glob": "~0.1.0",
     "level-map-index": "~0.1.0",
     "micromatch": "~1.0.0",
     "minimatch": "~2.0.1",

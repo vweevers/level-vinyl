@@ -9,8 +9,6 @@ Jump to: [example](#example) / [usage](#usage) / [vinyl adapter api](#vinyl-adap
 
 ## why?
 
-**level-vinyl gives you the combined power of vinyl and levelup.**
-
 Because level-vinyl is a vinyl adapter, you can:
 
 - use [1000+ gulp plugins](http://gulpjs.com/plugins) to transform files
@@ -214,6 +212,12 @@ db.batch([{
   mode: 0755
 }])
 ```
+
+### `db.createReadStream([options])`
+
+This is a plain stream, i.e. it does not decode values to Vinyl files.
+
+- `options.since` stream only files modified since a date or timestamp. Ignored for key streams (when `options.values === false`).
 
 ### `db.getBlobStore()`
 

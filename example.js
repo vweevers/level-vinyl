@@ -50,7 +50,7 @@ function verify() {
 
   vinylDb.get('/example.jpg', function(err, file){
     log('db', '/example.jpg', !!file)
-    file && vinylDb.vinylBlobs().exists({key: file.digest}, function(err, exists){
+    file && vinylDb.getBlobStore().exists({key: file.digest}, function(err, exists){
       log('blobs', file.digest.slice(0,10)+'..', exists)
     })
   })
@@ -58,7 +58,7 @@ function verify() {
   var min = vinylDb.subvinyl('minified')
   min.get('/example.jpg', function(err, file){
     log('minified sublevel', '/example.jpg', !!file)
-    file && min.vinylBlobs().exists({key: file.digest}, function(err, exists){
+    file && min.getBlobStore().exists({key: file.digest}, function(err, exists){
       log('minified blobs', file.digest.slice(0,10)+'..', exists)
     })
   })

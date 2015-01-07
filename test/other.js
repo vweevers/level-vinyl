@@ -113,7 +113,7 @@ test('stat', function(t){
 
 test('deletes blobs', function(t){
   var db = create()
-    , blobs = db.vinylBlobs()
+    , blobs = db.getBlobStore()
     , file = createFile('testfile', 'bloob')
 
   t.plan(2)
@@ -141,7 +141,7 @@ test('duplicate files, remove one, blob is kept', function(t){
     , file1 = createFile('test1', 'img')
     , file2 = createFile('test2', 'img')
     , ws = vinylDb.dest()
-    , blobs = vinylDb.vinylBlobs()
+    , blobs = vinylDb.getBlobStore()
 
   t.plan(5)
 
