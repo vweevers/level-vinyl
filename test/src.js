@@ -192,7 +192,7 @@ test('src with opts.read = false', function(t){
   t.plan(1)
 
   vinylDb.put(file, function(err){
-    vinylDb.src('test**', { read: false}).pipe(concat(function(files){
+    vinylDb.src('**', { read: false }).pipe(concat(function(files){
       t.ok(files[0] && files[0].isNull(), 'is null')
     }))
   })
